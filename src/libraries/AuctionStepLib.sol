@@ -13,7 +13,11 @@ library AuctionStepLib {
         }
     }
 
-    function resolvedSupply(AuctionStep memory step, uint256 totalSupply, uint256 totalCleared) internal pure returns (uint256) {
+    function resolvedSupply(AuctionStep memory step, uint256 totalSupply, uint256 totalCleared)
+        internal
+        pure
+        returns (uint256)
+    {
         return (totalSupply - totalCleared) * step.bps / (10_000 - step.bps);
     }
 }
