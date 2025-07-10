@@ -75,7 +75,7 @@ contract AuctionTest is TokenHandler, Test {
         vm.expectEmit(true, true, true, true);
         emit IAuction.BidSubmitted(2, _tickPriceAt(2), true, 100e18);
         auction.submitBid(_tickPriceAt(2), true, 100e18, alice, 1);
-        vm.snapshotGasLastCall('submitBid_exactIn_recordStep_initializeTick_updateClearingPrice');
+        vm.snapshotGasLastCall('submitBid_recordStep_initializeTick_updateClearingPrice');
     }
 
     function test_submitBid_exactOut_initializesTickAndUpdatesClearingPrice_succeeds() public {
