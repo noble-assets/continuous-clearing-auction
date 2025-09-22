@@ -1,16 +1,8 @@
 # AuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0870269de9eb67f838fdf37d31febd27dfdef28a/src/AuctionFactory.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/350e78cb49ebff7c60a7e8fefae7f2aa0cc63268/src/AuctionFactory.sol)
 
 **Inherits:**
 [IAuctionFactory](/src/interfaces/IAuctionFactory.sol/interface.IAuctionFactory.md)
-
-
-## State Variables
-### USE_MSG_SENDER
-
-```solidity
-address public constant USE_MSG_SENDER = 0x0000000000000000000000000000000000000001;
-```
 
 
 ## Functions

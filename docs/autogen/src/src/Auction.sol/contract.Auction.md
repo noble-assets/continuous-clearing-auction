@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0870269de9eb67f838fdf37d31febd27dfdef28a/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/f66249e6bb5ebf3be6698edff5f27719f8f33c6e/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -86,28 +86,11 @@ function onTokensReceived() external view;
 
 ### isGraduated
 
-External function to check if the auction has graduated as of the latest checkpoint
-
-*The latest checkpoint may be out of date*
-
-
-```solidity
-function isGraduated() external view returns (bool);
-```
-**Returns**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`<none>`|`bool`|bool Whether the auction has graduated or not|
-
-
-### _isGraduated
-
 Whether the auction has graduated as of the latest checkpoint (sold more than the graduation threshold)
 
 
 ```solidity
-function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool);
+function isGraduated() public view returns (bool);
 ```
 
 ### _transformCheckpoint
