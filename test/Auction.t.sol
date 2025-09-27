@@ -1306,7 +1306,7 @@ contract AuctionTest is AuctionBaseTest {
 
     function test_auctionConstruction_revertsWithTickSpacingZero() public {
         AuctionParameters memory paramsZeroTickSpacing = params.withTickSpacing(0);
-        vm.expectRevert(IAuction.TickSpacingIsZero.selector);
+        vm.expectRevert(ITickStorage.TickSpacingIsZero.selector);
         new Auction(address(token), TOTAL_SUPPLY, paramsZeroTickSpacing);
     }
 

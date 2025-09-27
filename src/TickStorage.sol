@@ -30,9 +30,16 @@ abstract contract TickStorage is ITickStorage {
     uint256 public constant MAX_TICK_PRICE = type(uint256).max;
 
     constructor(uint256 _tickSpacing, uint256 _floorPrice) {
+        if (_tickSpacing == 0) revert TickSpacingIsZero();
         tickSpacing = _tickSpacing;
+        // Ensure the floor price is at a tick boundary
+        if (_floorPrice % tickSpacing != 0) revert TickPriceNotAtBoundary();
         floorPrice = _floorPrice;
-        _unsafeInitializeTick(_floorPrice);
+        // Initialize the floor price as the first tick
+        $_ticks[_floorPrice].next = MAX_TICK_PRICE;
+        $nextActiveTickPrice = _floorPrice;
+        emit NextActiveTickUpdated(_floorPrice);
+        emit TickInitialized(_floorPrice);
     }
 
     /// @notice Get a tick at a price
@@ -40,16 +47,6 @@ abstract contract TickStorage is ITickStorage {
     /// @param price The price of the tick
     function getTick(uint256 price) public view returns (Tick memory) {
         return $_ticks[price];
-    }
-
-    /// @notice Initialize a tick at `price` without checking for existing ticks
-    /// @dev This function is unsafe and should only be used when the tick is guaranteed to be the first in the book
-    /// @param price The price of the tick
-    function _unsafeInitializeTick(uint256 price) internal {
-        $_ticks[price].next = MAX_TICK_PRICE;
-        $nextActiveTickPrice = price;
-        emit NextActiveTickUpdated(price);
-        emit TickInitialized(price);
     }
 
     /// @notice Initialize a tick at `price` if it does not exist already

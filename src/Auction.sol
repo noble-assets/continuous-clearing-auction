@@ -79,7 +79,6 @@ contract Auction is
 
         if (totalSupply == 0) revert TotalSupplyIsZero();
         if (floorPrice == 0) revert FloorPriceIsZero();
-        if (tickSpacing == 0) revert TickSpacingIsZero();
         if (claimBlock < endBlock) revert ClaimBlockIsBeforeEndBlock();
         if (fundsRecipient == address(0)) revert FundsRecipientIsZero();
     }
