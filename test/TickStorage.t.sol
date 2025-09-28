@@ -32,6 +32,10 @@ contract TickStorageTest is Test, Assertions {
     uint256 public constant FLOOR_PRICE = 100e6; // 100 in X96 format
 
     function setUp() public {
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.NextActiveTickUpdated(FLOOR_PRICE);
+        vm.expectEmit(true, true, true, true);
+        emit ITickStorage.TickInitialized(FLOOR_PRICE);
         tickStorage = new MockTickStorage(TICK_SPACING, FLOOR_PRICE);
     }
 
