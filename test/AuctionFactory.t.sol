@@ -3,13 +3,11 @@ pragma solidity 0.8.26;
 
 import {Auction, AuctionParameters} from '../src/Auction.sol';
 import {AuctionFactory} from '../src/AuctionFactory.sol';
-
+import {IAuction} from '../src/interfaces/IAuction.sol';
 import {IAuctionFactory} from '../src/interfaces/IAuctionFactory.sol';
 import {IDistributionContract} from '../src/interfaces/external/IDistributionContract.sol';
 import {IDistributionStrategy} from '../src/interfaces/external/IDistributionStrategy.sol';
-
 import {MPSLib, ValueX7} from '../src/libraries/MPSLib.sol';
-
 import {Assertions} from './utils/Assertions.sol';
 import {AuctionParamsBuilder} from './utils/AuctionParamsBuilder.sol';
 import {AuctionStepsBuilder} from './utils/AuctionStepsBuilder.sol';
@@ -76,6 +74,13 @@ contract AuctionFactoryTest is TokenHandler, Test, Assertions {
         assertEq(auction.startBlock(), block.number);
         assertEq(auction.endBlock(), block.number + AUCTION_DURATION);
         assertEq(auction.claimBlock(), block.number + AUCTION_DURATION);
+    }
+
+    function test_initializeDistribution_revertsWithInvalidClaimBlock() public {
+        uint256 endBlock = block.number + AUCTION_DURATION;
+        bytes memory configData = abi.encode(params.withClaimBlock(endBlock - 1));
+        vm.expectRevert(IAuction.ClaimBlockIsBeforeEndBlock.selector);
+        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
     function test_initializeDistribution_createsUniqueAddresses() public {
