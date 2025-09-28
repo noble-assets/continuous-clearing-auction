@@ -1,5 +1,5 @@
 # ITickStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e1dbf4f02e1bcbb91486a39f0f49eb2aeb52ecc6/src/interfaces/ITickStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0029089ebd1a3f788abcf4818f240d0f675068e6/src/interfaces/ITickStorage.sol)
 
 Interface for the TickStorage contract
 
@@ -32,6 +32,15 @@ Get the tick spacing enforced for bid prices
 
 ```solidity
 function tickSpacing() external view returns (uint256);
+```
+
+### ticks
+
+Get a tick at a price
+
+
+```solidity
+function ticks(uint256 price) external view returns (Tick memory);
 ```
 
 ## Events

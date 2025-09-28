@@ -1,5 +1,5 @@
 # ITokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/96e6e2c508ac3c34a2d937e1508d0ad15fe3ca30/src/interfaces/ITokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/d3b547d57209cfb3e96b83f2eaf1cb01b89692c4/src/interfaces/ITokenCurrencyStorage.sol)
 
 
 ## Events

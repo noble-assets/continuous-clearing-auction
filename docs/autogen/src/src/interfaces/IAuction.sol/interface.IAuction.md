@@ -1,8 +1,8 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/83a914c60b4e9281565be6f803d3565a474adef4/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0029089ebd1a3f788abcf4818f240d0f675068e6/src/interfaces/IAuction.sol)
 
 **Inherits:**
-[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
+[IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
 
 Interface for the Auction contract
 
@@ -139,6 +139,15 @@ Sweep any leftover tokens to the tokens recipient
 function sweepUnsoldTokens() external;
 ```
 
+### sumDemandAboveClearing
+
+The sum of demand in ticks above the clearing price
+
+
+```solidity
+function sumDemandAboveClearing() external view returns (Demand memory);
+```
+
 ## Events
 ### TokensReceived
 Emitted when the tokens are received
@@ -239,12 +248,12 @@ Error thrown when not enough amount is deposited
 error InvalidAmount();
 ```
 
-### CannotReceiveETHAndCurrency
+### CurrencyIsNotNative
 Error thrown when msg.value is non zero when currency is not ETH
 
 
 ```solidity
-error CannotReceiveETHAndCurrency();
+error CurrencyIsNotNative();
 ```
 
 ### AuctionNotStarted
@@ -303,12 +312,28 @@ Error thrown when the bid is higher than the clearing price
 error CannotExitBid();
 ```
 
-### InvalidCheckpointHint
+### CannotPartiallyExitBidBeforeEndBlock
+Error thrown when the bid cannot be partially exited before the end block
+
+
+```solidity
+error CannotPartiallyExitBidBeforeEndBlock();
+```
+
+### InvalidLowerCheckpointHint
 Error thrown when the checkpoint hint is invalid
 
 
 ```solidity
-error InvalidCheckpointHint();
+error InvalidLowerCheckpointHint();
+```
+
+### InvalidOutbidBlockCheckpointHint
+Error thrown when the outbid block checkpoint hint is invalid
+
+
+```solidity
+error InvalidOutbidBlockCheckpointHint();
 ```
 
 ### NotClaimable

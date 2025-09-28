@@ -1,5 +1,5 @@
 # IAuctionStepStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/0c5851aa9ec5ac43c56db7c402b9b2ddf115c996/src/interfaces/IAuctionStepStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0029089ebd1a3f788abcf4818f240d0f675068e6/src/interfaces/IAuctionStepStorage.sol)
 
 
 ## Functions
@@ -19,6 +19,15 @@ The block at which the auction ends
 
 ```solidity
 function endBlock() external view returns (uint64);
+```
+
+### step
+
+Get the current active auction step
+
+
+```solidity
+function step() external view returns (AuctionStep memory);
 ```
 
 ## Events

@@ -1,5 +1,5 @@
 # ICheckpointStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/e1dbf4f02e1bcbb91486a39f0f49eb2aeb52ecc6/src/interfaces/ICheckpointStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/0029089ebd1a3f788abcf4818f240d0f675068e6/src/interfaces/ICheckpointStorage.sol)
 
 
 ## Functions
@@ -39,5 +39,14 @@ Get the number of the last checkpointed block
 
 ```solidity
 function lastCheckpointedBlock() external view returns (uint64);
+```
+
+### checkpoints
+
+Get a checkpoint at a block number
+
+
+```solidity
+function checkpoints(uint64 blockNumber) external view returns (Checkpoint memory);
 ```
 
