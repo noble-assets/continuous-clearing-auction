@@ -1,5 +1,5 @@
 # TokenCurrencyStorage
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8cece7b4429d881c014ab2471e59a46f1e79e8cb/src/TokenCurrencyStorage.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/07712f11fafad883cb4261b09b8cf07d1b82d868/src/TokenCurrencyStorage.sol)
 
 **Inherits:**
 [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md)
@@ -33,14 +33,12 @@ uint256 internal immutable TOTAL_SUPPLY;
 ```
 
 
-### TOTAL_SUPPLY_X7
-The total supply of tokens to sell, scaled up to a ValueX7
-
-*The auction does not support selling more than type(uint256).max / MPSLib.MPS (1e7) tokens*
+### TOTAL_SUPPLY_X7_X7
+The total supply of tokens to sell, scaled up to a ValueX7X7
 
 
 ```solidity
-ValueX7 internal immutable TOTAL_SUPPLY_X7;
+ValueX7X7 internal immutable TOTAL_SUPPLY_X7_X7;
 ```
 
 
@@ -71,12 +69,12 @@ uint24 internal immutable GRADUATION_THRESHOLD_MPS;
 ```
 
 
-### REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7
+### REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7
 The amount of supply that must be sold for the auction to graduate, saved for gas optimization
 
 
 ```solidity
-ValueX7 internal immutable REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7;
+ValueX7X7 internal immutable REQUIRED_SUPPLY_SOLD_FOR_GRADUATION_X7_X7;
 ```
 
 

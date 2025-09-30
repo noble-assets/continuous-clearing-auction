@@ -1,5 +1,5 @@
 # Auction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8cece7b4429d881c014ab2471e59a46f1e79e8cb/src/Auction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/07712f11fafad883cb4261b09b8cf07d1b82d868/src/Auction.sol)
 
 **Inherits:**
 [BidStorage](/src/BidStorage.sol/abstract.BidStorage.md), [CheckpointStorage](/src/CheckpointStorage.sol/abstract.CheckpointStorage.md), [AuctionStepStorage](/src/AuctionStepStorage.sol/abstract.AuctionStepStorage.md), [TickStorage](/src/TickStorage.sol/abstract.TickStorage.md), [PermitSingleForwarder](/src/PermitSingleForwarder.sol/abstract.PermitSingleForwarder.md), [TokenCurrencyStorage](/src/TokenCurrencyStorage.sol/abstract.TokenCurrencyStorage.md), [IAuction](/src/interfaces/IAuction.sol/interface.IAuction.md)
@@ -47,6 +47,16 @@ Whether the TOTAL_SUPPLY of tokens has been received
 
 ```solidity
 bool private $_tokensReceived;
+```
+
+
+### $_supplyRolloverMultiplier
+A packed uint256 containing `set`, `remainingSupplyX7X7`, and `remainingMps` values derived from the checkpoint
+immediately before the auction becomes fully subscribed. The ratio of these helps account for rollover supply.
+
+
+```solidity
+SupplyRolloverMultiplier internal $_supplyRolloverMultiplier;
 ```
 
 
@@ -121,17 +131,26 @@ Whether the auction has graduated as of the given checkpoint (sold more than the
 ```solidity
 function _isGraduated(Checkpoint memory _checkpoint) internal view returns (bool);
 ```
+
+### _remainingMpsInAuction
+
+Get the remaining mps left in the auction at the given checkpoint
+
+
+```solidity
+function _remainingMpsInAuction(Checkpoint memory _checkpoint) internal pure returns (uint24);
+```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`_checkpoint`|`Checkpoint`|The checkpoint to check|
+|`_checkpoint`|`Checkpoint`|The checkpoint with `cumulativeMps` so far|
 
 **Returns**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`bool`|bool True if the auction has graduated, false otherwise|
+|`<none>`|`uint24`|The remaining mps in the auction|
 
 
 ### _transformCheckpoint
@@ -142,10 +161,7 @@ This function updates the cumulative values of the checkpoint, requiring that
 
 
 ```solidity
-function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps)
-    internal
-    view
-    returns (Checkpoint memory);
+function _transformCheckpoint(Checkpoint memory _checkpoint, uint24 deltaMps) internal returns (Checkpoint memory);
 ```
 **Parameters**
 
@@ -176,23 +192,23 @@ function _advanceToCurrentStep(Checkpoint memory _checkpoint, uint64 blockNumber
 
 ### _calculateNewClearingPrice
 
-Calculate the new clearing price, given:
+Calculate the new clearing price, given the minimum clearing price and the remaining supply in the auction
 
 
 ```solidity
 function _calculateNewClearingPrice(
-    Demand memory blockSumDemandAboveClearing,
     uint256 minimumClearingPrice,
-    ValueX7 supplyX7
+    uint24 remainingMpsInAuction,
+    ValueX7X7 remainingSupplyX7X7
 ) internal view returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`blockSumDemandAboveClearing`|`Demand`|The demand above the clearing price in the block|
-|`minimumClearingPrice`|`uint256`|The minimum clearing price|
-|`supplyX7`|`ValueX7`|The token supply (as ValueX7) at or above nextActiveTickPrice in the block|
+|`minimumClearingPrice`|`uint256`|The minimum clearing price, which will either be the floor price or the last iterated `nextActiveTickPrice`|
+|`remainingMpsInAuction`|`uint24`|The remaining mps in the auction which is MPSLib.MPS minus the cumulative mps so far|
+|`remainingSupplyX7X7`|`ValueX7X7`|The result of TOTAL_SUPPLY_X7_X7 minus the total cleared supply so far|
 
 
 ### _updateLatestCheckpointToCurrentStep

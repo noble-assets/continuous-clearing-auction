@@ -1,25 +1,8 @@
 # CheckpointLib
-[Git Source](https://github.com/Uniswap/twap-auction/blob/8cece7b4429d881c014ab2471e59a46f1e79e8cb/src/libraries/CheckpointLib.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/07712f11fafad883cb4261b09b8cf07d1b82d868/src/libraries/CheckpointLib.sol)
 
 
 ## Functions
-### getSupply
-
-Calculate the actual supply to sell given the total cleared in the auction so far
-
-
-```solidity
-function getSupply(Checkpoint memory checkpoint, ValueX7 totalSupplyX7, uint24 mps) internal pure returns (ValueX7);
-```
-**Parameters**
-
-|Name|Type|Description|
-|----|----|-----------|
-|`checkpoint`|`Checkpoint`|The last checkpointed state of the auction|
-|`totalSupplyX7`|`ValueX7`|immutable total supply of the auction|
-|`mps`|`uint24`|the number of mps, following the auction sale schedule|
-
-
 ### getMpsPerPrice
 
 Calculate the supply to price ratio. Will return zero if `price` is zero
