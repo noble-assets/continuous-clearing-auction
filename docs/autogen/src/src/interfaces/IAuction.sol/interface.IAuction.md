@@ -1,5 +1,5 @@
 # IAuction
-[Git Source](https://github.com/Uniswap/twap-auction/blob/c968c963f6b2d0d8603af50fad60d232a645daef/src/interfaces/IAuction.sol)
+[Git Source](https://github.com/Uniswap/twap-auction/blob/8c2930146e31b54e368caa772ec5bb20d1a47d12/src/interfaces/IAuction.sol)
 
 **Inherits:**
 [IDistributionContract](/src/interfaces/external/IDistributionContract.sol/interface.IDistributionContract.md), [ICheckpointStorage](/src/interfaces/ICheckpointStorage.sol/interface.ICheckpointStorage.md), [ITickStorage](/src/interfaces/ITickStorage.sol/interface.ITickStorage.md), [IAuctionStepStorage](/src/interfaces/IAuctionStepStorage.sol/interface.IAuctionStepStorage.md), [ITokenCurrencyStorage](/src/interfaces/ITokenCurrencyStorage.sol/interface.ITokenCurrencyStorage.md), [IBidStorage](/src/interfaces/IBidStorage.sol/interface.IBidStorage.md)
@@ -87,7 +87,10 @@ function checkpoint() external returns (Checkpoint memory _checkpoint);
 
 ### isGraduated
 
-Whether the auction has sold more tokens than specified in the graduation threshold as of the latest checkpoint
+Whether the auction has graduated as of the given checkpoint
+
+*The auction is considered `graudated` if the clearing price is greater than the floor price
+since that means it has sold all of the total supply of tokens.*
 
 *Be aware that the latest checkpoint may be out of date*
 
@@ -257,6 +260,21 @@ event CheckpointUpdated(
 |`totalClearedX7X7`|`ValueX7X7`|The total amount of tokens cleared|
 |`cumulativeMps`|`uint24`|The cumulative percentage of total tokens allocated across all previous steps, represented in ten-millionths of the total supply (1e7 = 100%)|
 
+### ClearingPriceUpdated
+Emitted when the clearing price is updated
+
+
+```solidity
+event ClearingPriceUpdated(uint256 indexed blockNumber, uint256 clearingPrice);
+```
+
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`blockNumber`|`uint256`||
+|`clearingPrice`|`uint256`|The new clearing price|
+
 ### BidExited
 Emitted when a bid is exited
 
@@ -417,6 +435,14 @@ Error thrown when a new bid is less than or equal to the clearing price
 
 ```solidity
 error InvalidBidPrice();
+```
+
+### InvalidBidUnableToClear
+Error thrown when the bid is too large
+
+
+```solidity
+error InvalidBidUnableToClear();
 ```
 
 ### AuctionSoldOut
