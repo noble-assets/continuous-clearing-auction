@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {AuctionStepLib} from './AuctionStepLib.sol';
 import {ConstantsLib} from './ConstantsLib.sol';
 import {FixedPoint96} from './FixedPoint96.sol';
 import {ValueX7, ValueX7Lib} from './ValueX7Lib.sol';
@@ -20,7 +19,6 @@ struct Bid {
 
 /// @title BidLib
 library BidLib {
-    using AuctionStepLib for uint256;
     using ValueX7Lib for *;
     using ValueX7X7Lib for *;
     using BidLib for *;
