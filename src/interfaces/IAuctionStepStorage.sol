@@ -14,9 +14,13 @@ interface IAuctionStepStorage {
     /// @notice Error thrown when the block delta in a step is zero
     error StepBlockDeltaCannotBeZero();
     /// @notice Error thrown when the mps is invalid
-    error InvalidStepDataMps();
-    /// @notice Error thrown when the end block is invalid
-    error InvalidEndBlockGivenStepData();
+    /// @param actualMps The sum of the mps times the block delta
+    /// @param expectedMps The expected mps of the auction (ConstantsLib.MPS)
+    error InvalidStepDataMps(uint256 actualMps, uint256 expectedMps);
+    /// @notice Error thrown when the calculated end block is invalid
+    /// @param actualEndBlock The calculated end block from the step data
+    /// @param expectedEndBlock The expected end block from the constructor
+    error InvalidEndBlockGivenStepData(uint64 actualEndBlock, uint64 expectedEndBlock);
 
     /// @notice The block at which the auction starts
     /// @return The starting block number
