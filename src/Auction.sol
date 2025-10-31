@@ -304,7 +304,8 @@ contract Auction is
         }
 
         // The minimum clearing price is either the floor price or the last tick we iterated over.
-        // It becomes a lower bound for the clearing price.
+        // With the exception of the first iteration, the minimum price is a lower bound on the clearing price
+        // because we already verified that we had enough demand to purchase all of the remaining supply at that price.
         if (clearingPrice < minimumClearingPrice) {
             clearingPrice = minimumClearingPrice;
         }
@@ -353,6 +354,9 @@ contract Auction is
         return _unsafeCheckpoint(END_BLOCK);
     }
 
+    /// @notice Internal function for bid submission
+    /// @dev Validates `maxPrice`, calls the validation hook (if set) and updates global state variables
+    ///      For gas efficiency, `prevTickPrice` should be the price of the tick immediately before `maxPrice`.
     function _submitBid(
         uint256 maxPrice,
         uint128 amount,
@@ -414,8 +418,9 @@ contract Auction is
     function checkpoint() public onlyActiveAuction returns (Checkpoint memory) {
         if (block.number > END_BLOCK) {
             return _getFinalCheckpoint();
+        } else {
+            return _unsafeCheckpoint(uint64(block.number));
         }
-        return _unsafeCheckpoint(uint64(block.number));
     }
 
     /// @inheritdoc IAuction
@@ -538,23 +543,11 @@ contract Auction is
             }
         }
 
-        /**
-         * Account for partially filled checkpoints
-         *
-         *                 <-- fully filled ->  <- partially filled ---------->  INACTIVE
-         *                | ----------------- | -------- | ------------------- | ------ |
-         *                ^                   ^          ^                     ^        ^
-         *              start       lastFullyFilled   lastFullyFilled.next    upper    outbid
-         *
-         * Instantly partial fill case:
-         *
-         *                <- partially filled ----------------------------->  INACTIVE
-         *                | ----------------- | --------------------------- | ------ |
-         *                ^                   ^                             ^        ^
-         *              start          lastFullyFilled.next               upper    outbid
-         *           lastFullyFilled
-         *
-         */
+        // If there is an `upperCheckpoint` that means that the bid had a period where it was partially filled
+        // From the logic above, `upperCheckpoint` now points to the last checkpoint where the clearingPrice == bidMaxPrice.
+        // Because the clearing price can never decrease between checkpoints, and the fact that you cannot enter a bid
+        // at or below the current clearing price, the bid MUST have been active during the entire partial fill period.
+        // And `upperCheckpoint` tracks the cumulative currency raised at that clearing price since the first partially filled checkpoint.
         if (upperCheckpoint.clearingPrice == bidMaxPrice) {
             (uint256 partialTokensFilled, uint256 partialCurrencySpentQ96) = _accountPartiallyFilledCheckpoints(
                 bid, _getTick(bidMaxPrice).currencyDemandQ96, upperCheckpoint.currencyRaisedAtClearingPriceQ96_X7
