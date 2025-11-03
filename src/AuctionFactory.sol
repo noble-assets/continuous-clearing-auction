@@ -35,7 +35,7 @@ contract AuctionFactory is IAuctionFactory {
 
     /// @inheritdoc IAuctionFactory
     function getAuctionAddress(address token, uint256 amount, bytes calldata configData, bytes32 salt, address sender)
-        public
+        external
         view
         override(IAuctionFactory)
         returns (address)

@@ -137,7 +137,7 @@ contract Auction is
     }
 
     /// @inheritdoc IAuction
-    function currencyRaised() public view returns (uint256) {
+    function currencyRaised() external view returns (uint256) {
         return _currencyRaised();
     }
 
@@ -444,7 +444,7 @@ contract Auction is
 
     /// @inheritdoc IAuction
     function submitBid(uint256 maxPrice, uint128 amount, address owner, bytes calldata hookData)
-        public
+        external
         payable
         onlyActiveAuction
         returns (uint256)

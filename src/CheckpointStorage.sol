@@ -25,7 +25,7 @@ abstract contract CheckpointStorage is ICheckpointStorage {
     }
 
     /// @inheritdoc ICheckpointStorage
-    function clearingPrice() public view returns (uint256) {
+    function clearingPrice() external view returns (uint256) {
         return _getCheckpoint($lastCheckpointedBlock).clearingPrice;
     }
 
