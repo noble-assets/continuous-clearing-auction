@@ -47,7 +47,7 @@ abstract contract TokenCurrencyStorage is ITokenCurrencyStorage {
         uint128 _requiredCurrencyRaised
     ) {
         if (_token == address(0)) revert TokenIsAddressZero();
-        if (_token == address(_currency)) revert TokenAndCurrencyCannotBeTheSame();
+        if (_token == _currency) revert TokenAndCurrencyCannotBeTheSame();
         if (_totalSupply == 0) revert TotalSupplyIsZero();
         if (_tokensRecipient == address(0)) revert TokensRecipientIsZero();
         if (_fundsRecipient == address(0)) revert FundsRecipientIsZero();
