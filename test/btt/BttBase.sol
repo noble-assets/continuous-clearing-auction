@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {Bid} from 'continuous-clearing-auction/BidStorage.sol';
+import {AuctionParameters} from 'continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol';
 import {VmSafe} from 'forge-std/Vm.sol';
-import {Bid} from 'twap-auction/BidStorage.sol';
-import {AuctionParameters} from 'twap-auction/interfaces/IAuction.sol';
 // Chore: move to a shared place
+import {ConstantsLib} from 'continuous-clearing-auction/libraries/ConstantsLib.sol';
+import {AuctionStep} from 'continuous-clearing-auction/libraries/StepLib.sol';
 import {FixedPointMathLib} from 'solady/utils/FixedPointMathLib.sol';
 import {CompactStep, CompactStepLib, Step} from 'test/btt/libraries/auctionStepLib/StepUtils.sol';
 import {AuctionBaseTest} from 'test/utils/AuctionBaseTest.sol';
-import {AuctionStep} from 'twap-auction/libraries/AuctionStepLib.sol';
-import {ConstantsLib} from 'twap-auction/libraries/ConstantsLib.sol';
 
 struct AuctionFuzzConstructorParams {
     address token;

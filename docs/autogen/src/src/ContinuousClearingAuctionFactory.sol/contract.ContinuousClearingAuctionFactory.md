@@ -1,8 +1,8 @@
-# AuctionFactory
-[Git Source](https://github.com/Uniswap/twap-auction/blob/b1e8018fe3abb164363f6a42aab29aa2b1ae6fa5/src/AuctionFactory.sol)
+# ContinuousClearingAuctionFactory
+[Git Source](https://github.com/Uniswap/twap-auction/blob/2d1f484976971780a7d5c3026e11b7b066ca6758/src/ContinuousClearingAuctionFactory.sol)
 
 **Inherits:**
-[IAuctionFactory](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IAuctionFactory.sol/interface.IAuctionFactory.md)
+[IContinuousClearingAuctionFactory](/Users/eric.zhong/uniswap/twap-auction/docs/autogen/src/src/interfaces/IContinuousClearingAuctionFactory.sol/interface.IContinuousClearingAuctionFactory.md)
 
 **Note:**
 security-contact: security@uniswap.org
