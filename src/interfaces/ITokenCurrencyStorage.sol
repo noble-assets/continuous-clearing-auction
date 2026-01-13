@@ -22,6 +22,8 @@ interface ITokenCurrencyStorage {
     error CannotSweepCurrency();
     /// @notice Error thrown when the tokens cannot be swept
     error CannotSweepTokens();
+    /// @notice Error thrown when unsold tokens must be swept first
+    error MustSweepUnsoldTokensFirst();
     /// @notice Error thrown when the auction has not graduated
     error NotGraduated();
 

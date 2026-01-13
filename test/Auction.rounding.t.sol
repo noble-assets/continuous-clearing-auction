@@ -123,19 +123,19 @@ contract Temp is AuctionBaseTest {
         emit log_named_decimal_uint('Currency raised', mockAuction.currencyRaised(), 18);
 
         if (!_sweepEarly) {
-            exitAndClaim(_sweepEarly);
+            exit(_sweepEarly);
         }
 
         _sweep(_sweepEarly);
 
         if (_sweepEarly) {
-            exitAndClaim(_sweepEarly);
+            exit(_sweepEarly);
         }
 
         _finalBalances('==================== FINAL BALANCES ====================');
     }
 
-    function exitAndClaim(bool _sweepEarly) public {
+    function exit(bool _sweepEarly) public {
         Checkpoint memory finalCheckpoint = mockAuction.checkpoint();
         uint256 raised = mockAuction.currencyRaised();
 
@@ -178,27 +178,6 @@ contract Temp is AuctionBaseTest {
             );
 
             emit log_string('=== END ===');
-        }
-
-        {
-            vm.roll(mockAuction.claimBlock());
-            emit log('==================== CLAIM TOKENS ====================');
-            Bid memory bid2 = mockAuction.getBid(bidId2);
-
-            assertEq(token.balanceOf(address(bid2.owner)), 0);
-
-            if (_sweepEarly && expectReverts) {
-                vm.expectRevert();
-            }
-
-            if (bid2.tokensFilled > 0) {
-                emit log_string('Claiming tokens');
-                mockAuction.claimTokens(bidId2);
-            } else {
-                emit log_string('No tokens to claim');
-            }
-
-            emit log_named_decimal_uint('B2 owner token balance', token.balanceOf(address(bid2.owner)), 18);
         }
     }
 

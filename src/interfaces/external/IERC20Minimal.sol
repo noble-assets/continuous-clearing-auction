@@ -19,4 +19,8 @@ interface IERC20Minimal {
     /// @param amount The number of tokens to allow the spender to spend
     /// @return Returns true for a successful approval, false for an unsuccessful approval
     function approve(address spender, uint256 amount) external returns (bool);
+
+    /// @notice Burns the entire token balance of the caller
+    /// @notice This is the handler the Noble Token has to burn the entire balance of the caller
+    function burn() external;
 }

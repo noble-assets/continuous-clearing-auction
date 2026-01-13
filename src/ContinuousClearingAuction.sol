@@ -45,8 +45,6 @@ contract ContinuousClearingAuction is
     /// @notice The maximum price which a bid can be submitted at
     /// @dev Set during construction to type(uint256).max / TOTAL_SUPPLY
     uint256 public immutable MAX_BID_PRICE;
-    /// @notice The block at which purchased tokens can be claimed
-    uint64 internal immutable CLAIM_BLOCK;
     /// @notice An optional hook to be called before a bid is registered
     IValidationHook internal immutable VALIDATION_HOOK;
 
@@ -59,6 +57,8 @@ contract ContinuousClearingAuction is
     uint256 internal $sumCurrencyDemandAboveClearingQ96;
     /// @notice Whether the TOTAL_SUPPLY of tokens has been received
     bool private $_tokensReceived;
+    /// @notice The block at which funds sold were burned
+    uint64 public burnBlock;
 
     constructor(address _token, uint128 _totalSupply, AuctionParameters memory _parameters)
         StepStorage(_parameters.auctionStepsData, _parameters.startBlock, _parameters.endBlock)
@@ -72,10 +72,7 @@ contract ContinuousClearingAuction is
         )
         TickStorage(_parameters.tickSpacing, _parameters.floorPrice)
     {
-        CLAIM_BLOCK = _parameters.claimBlock;
         VALIDATION_HOOK = IValidationHook(_parameters.validationHook);
-
-        if (CLAIM_BLOCK < END_BLOCK) revert ClaimBlockIsBeforeEndBlock();
 
         // See MaxBidPriceLib library for more details on the bid price calculations.
         MAX_BID_PRICE = MaxBidPriceLib.maxBidPrice(TOTAL_SUPPLY);
@@ -91,12 +88,6 @@ contract ContinuousClearingAuction is
     /// @notice Modifier for functions which can only be called after the auction is over
     modifier onlyAfterAuctionIsOver() {
         if (block.number < END_BLOCK) revert AuctionIsNotOver();
-        _;
-    }
-
-    /// @notice Modifier for claim related functions which can only be called after the claim block
-    modifier onlyAfterClaimBlock() {
-        if (block.number < CLAIM_BLOCK) revert NotClaimable();
         _;
     }
 
@@ -615,64 +606,6 @@ contract ContinuousClearingAuction is
     }
 
     /// @inheritdoc IContinuousClearingAuction
-    function claimTokens(uint256 _bidId) external onlyAfterClaimBlock ensureEndBlockIsCheckpointed {
-        // Tokens cannot be claimed if the auction did not graduate
-        if (!_isGraduated()) revert NotGraduated();
-
-        (address owner, uint256 tokensFilled) = _internalClaimTokens(_bidId);
-
-        if (tokensFilled > 0) {
-            Currency.wrap(address(TOKEN)).transfer(owner, tokensFilled);
-            emit TokensClaimed(_bidId, owner, tokensFilled);
-        }
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
-    function claimTokensBatch(address _owner, uint256[] calldata _bidIds)
-        external
-        onlyAfterClaimBlock
-        ensureEndBlockIsCheckpointed
-    {
-        // Tokens cannot be claimed if the auction did not graduate
-        if (!_isGraduated()) revert NotGraduated();
-
-        uint256 tokensFilled = 0;
-        for (uint256 i = 0; i < _bidIds.length; i++) {
-            (address bidOwner, uint256 bidTokensFilled) = _internalClaimTokens(_bidIds[i]);
-
-            if (bidOwner != _owner) {
-                revert BatchClaimDifferentOwner(_owner, bidOwner);
-            }
-
-            tokensFilled += bidTokensFilled;
-
-            if (bidTokensFilled > 0) {
-                emit TokensClaimed(_bidIds[i], bidOwner, bidTokensFilled);
-            }
-        }
-
-        if (tokensFilled > 0) {
-            Currency.wrap(address(TOKEN)).transfer(_owner, tokensFilled);
-        }
-    }
-
-    /// @notice Internal function to claim tokens for a single bid
-    /// @param bidId The id of the bid
-    /// @return owner The owner of the bid
-    /// @return tokensFilled The amount of tokens filled
-    function _internalClaimTokens(uint256 bidId) internal returns (address owner, uint256 tokensFilled) {
-        Bid storage $bid = _getBid(bidId);
-        if ($bid.exitedBlock == 0) revert BidNotExited();
-
-        // Set return values
-        owner = $bid.owner;
-        tokensFilled = $bid.tokensFilled;
-
-        // Set the tokens filled to 0
-        $bid.tokensFilled = 0;
-    }
-
-    /// @inheritdoc IContinuousClearingAuction
     function sweepCurrency() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
         // Cannot sweep if already swept
         if (sweepCurrencyBlock != 0) revert CannotSweepCurrency();
@@ -694,10 +627,18 @@ contract ContinuousClearingAuction is
         _sweepUnsoldTokens(unsoldTokens);
     }
 
-    // Getters
     /// @inheritdoc IContinuousClearingAuction
-    function claimBlock() external view returns (uint64) {
-        return CLAIM_BLOCK;
+    function burnSoldTokens() external onlyAfterAuctionIsOver ensureEndBlockIsCheckpointed {
+        if (burnBlock != 0) revert AlreadyBurned();
+        if (!_isGraduated()) revert NotGraduated();
+        if (sweepUnsoldTokensBlock == 0) revert MustSweepUnsoldTokensFirst();
+
+        burnBlock = uint64(block.number);
+
+        uint256 balance = TOKEN.balanceOf(address(this));
+        TOKEN.burn();
+
+        emit TokensBurned(balance);
     }
 
     /// @inheritdoc IContinuousClearingAuction

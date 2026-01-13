@@ -49,14 +49,6 @@ contract AuctionFactoryTest is AuctionBaseTest {
         assertEq(_auction.fundsRecipient(), fundsRecipient);
         assertEq(_auction.startBlock(), block.number);
         assertEq(_auction.endBlock(), block.number + AUCTION_DURATION);
-        assertEq(_auction.claimBlock(), block.number + AUCTION_DURATION + CLAIM_BLOCK_OFFSET);
-    }
-
-    function test_initializeDistribution_revertsWithInvalidClaimBlock() public {
-        uint256 endBlock = block.number + AUCTION_DURATION;
-        bytes memory configData = abi.encode(params.withClaimBlock(endBlock - 1));
-        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
-        factory.initializeDistribution(address(token), TOTAL_SUPPLY, configData, bytes32(0));
     }
 
     function test_initializeDistribution_createsAuction_withMsgSenderAsFundsRecipient() public {

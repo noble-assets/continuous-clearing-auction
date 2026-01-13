@@ -33,7 +33,6 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
         checkAuctionIsGraduated
-        checkAuctionIsSolvent
     {
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
 
@@ -45,16 +44,6 @@ contract AuctionGraduationTest is AuctionBaseTest {
         } else {
             auction.exitPartiallyFilledBid(bidId, auction.startBlock(), 0);
         }
-
-        vm.roll(auction.claimBlock());
-        uint256 aliceTokensBefore = token.balanceOf(alice);
-        auction.claimTokens(bidId);
-        assertApproxEqAbs(
-            auction.totalCleared(),
-            token.balanceOf(alice) - aliceTokensBefore,
-            MAX_ALLOWABLE_DUST_WEI,
-            'Total cleared must be within 1e18 wei of the tokens filled by alice'
-        );
     }
 
     function test_exitBid_notGraduated_succeeds(
@@ -123,45 +112,6 @@ contract AuctionGraduationTest is AuctionBaseTest {
         auction.exitPartiallyFilledBid(bidId1, startBlock, startBlock + 1);
     }
 
-    function test_claimTokensBatch_notGraduated_reverts(
-        FuzzDeploymentParams memory _deploymentParams,
-        uint128 _bidAmount,
-        uint128 _maxPrice,
-        uint128 _numberOfBids
-    )
-        public
-        setUpAuctionFuzz(_deploymentParams)
-        givenValidMaxPriceWithParams(_maxPrice, $deploymentParams.totalSupply, params.floorPrice, params.tickSpacing)
-        givenValidBidAmount(_bidAmount)
-        givenNotGraduatedAuction
-        givenAuctionHasStarted
-        givenFullyFundedAccount
-        checkAuctionIsNotGraduated
-    {
-        // Dont do too many bids
-        _numberOfBids = SafeCastLib.toUint128(_bound(_numberOfBids, 1, 10));
-
-        // Ensure an amount of at least 1 for every bid
-        $bidAmount = uint128(bound(_bidAmount, _numberOfBids, type(uint128).max));
-        // Ensure the graduation threshold is not met
-        vm.assume($bidAmount < params.requiredCurrencyRaised);
-
-        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
-
-        // Exit the bid
-        vm.roll(auction.endBlock());
-        for (uint256 i = 0; i < _numberOfBids; i++) {
-            auction.exitBid(bids[i]);
-        }
-
-        // Go back to before the claim block
-        vm.roll(auction.claimBlock() - 1);
-
-        // Try to claim tokens before the claim block
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
-        auction.claimTokensBatch(alice, bids);
-    }
-
     function test_sweepCurrency_notGraduated_reverts(
         FuzzDeploymentParams memory _deploymentParams,
         uint128 _bidAmount,
@@ -214,7 +164,6 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
         checkAuctionIsGraduated
-        checkAuctionIsSolvent
     {
         uint64 bidIdBlock = uint64(block.number);
         uint256 bidId = auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, params.floorPrice, bytes(''));
@@ -230,16 +179,6 @@ contract AuctionGraduationTest is AuctionBaseTest {
         } else {
             auction.exitPartiallyFilledBid(bidId, bidIdBlock, 0);
         }
-
-        vm.roll(auction.claimBlock());
-        uint256 aliceTokensBefore = token.balanceOf(alice);
-        auction.claimTokens(bidId);
-        assertApproxEqAbs(
-            token.balanceOf(alice),
-            aliceTokensBefore + auction.totalCleared(),
-            MAX_ALLOWABLE_DUST_WEI,
-            'Total cleared must be within 1e18 wei of the tokens filled by alice'
-        );
     }
 
     function test_sweepUnsoldTokens_graduated_sweepsLeftoverTokens(
@@ -255,7 +194,6 @@ contract AuctionGraduationTest is AuctionBaseTest {
         givenAuctionHasStarted
         givenFullyFundedAccount
         checkAuctionIsGraduated
-        checkAuctionIsSolvent
     {
         uint64 bidBlock = uint64(_bound(block.number, auction.startBlock(), auction.endBlock() - 1));
         vm.roll(bidBlock);
@@ -274,23 +212,6 @@ contract AuctionGraduationTest is AuctionBaseTest {
 
         Bid memory bid = auction.bids(bidId);
         assertLe(bid.tokensFilled, auction.totalCleared());
-
-        vm.roll(auction.claimBlock());
-        uint256 aliceTokensBefore = token.balanceOf(alice);
-
-        if (bid.tokensFilled > 0) {
-            vm.expectEmit(true, true, true, true);
-            emit IContinuousClearingAuction.TokensClaimed(bidId, alice, bid.tokensFilled);
-            auction.claimTokens(bidId);
-            assertEq(token.balanceOf(alice), bid.tokensFilled);
-        }
-
-        assertApproxEqAbs(
-            auction.totalCleared(),
-            token.balanceOf(alice) - aliceTokensBefore,
-            MAX_ALLOWABLE_DUST_WEI,
-            'Total cleared must be within 1e18 wei of the tokens filled by alice'
-        );
     }
 
     function test_sweepUnsoldTokens_notGraduated(

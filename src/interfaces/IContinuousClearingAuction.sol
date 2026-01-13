@@ -57,8 +57,6 @@ interface IContinuousClearingAuction is
     error AuctionNotStarted();
     /// @notice Error thrown when the tokens required for the auction have not been received
     error TokensNotReceived();
-    /// @notice Error thrown when the claim block is before the end block
-    error ClaimBlockIsBeforeEndBlock();
     /// @notice Error thrown when the floor price plus tick spacing is greater than the maximum bid price
     error FloorPriceAndTickSpacingGreaterThanMaxBidPrice(uint256 nextTick, uint256 maxBidPrice);
     /// @notice Error thrown when the floor price plus tick spacing would overflow a uint256
@@ -75,8 +73,6 @@ interface IContinuousClearingAuction is
     error InvalidOutbidBlockCheckpointHint();
     /// @notice Error thrown when the bid is not claimable
     error NotClaimable();
-    /// @notice Error thrown when the bids are not owned by the same owner
-    error BatchClaimDifferentOwner(address expectedOwner, address receivedOwner);
     /// @notice Error thrown when the bid has not been exited
     error BidNotExited();
     /// @notice Error thrown when the bid cannot be partially exited before the auction has graduated
@@ -89,6 +85,8 @@ interface IContinuousClearingAuction is
     error InvalidBidUnableToClear();
     /// @notice Error thrown when the auction has sold the entire total supply of tokens
     error AuctionSoldOut();
+    /// @notice Error thrown when the tokens have already been burned
+    error AlreadyBurned();
 
     /// @notice Emitted when the tokens are received
     /// @param totalSupply The total supply of tokens received
@@ -119,11 +117,9 @@ interface IContinuousClearingAuction is
     /// @param currencyRefunded The amount of currency refunded
     event BidExited(uint256 indexed bidId, address indexed owner, uint256 tokensFilled, uint256 currencyRefunded);
 
-    /// @notice Emitted when a bid is claimed
-    /// @param bidId The id of the bid
-    /// @param owner The owner of the bid
-    /// @param tokensFilled The amount of tokens claimed
-    event TokensClaimed(uint256 indexed bidId, address indexed owner, uint256 tokensFilled);
+    /// @notice Emitted when tokens sold are burned
+    /// @param amount The amount of tokens burned
+    event TokensBurned(uint256 amount);
 
     /// @notice Submit a new bid
     /// @param maxPrice The maximum price the bidder is willing to pay
@@ -180,25 +176,9 @@ interface IContinuousClearingAuction is
     /// @param outbidBlock The first checkpointed block where the clearing price is strictly > bid.maxPrice, or 0 if the bid is partially filled at the end of the auction
     function exitPartiallyFilledBid(uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock) external;
 
-    /// @notice Claim tokens after the auction's claim block
-    /// @notice The bid must be exited before claiming tokens
-    /// @dev Anyone can claim tokens for any bid, the tokens are transferred to the bid owner
-    /// @param bidId The id of the bid
-    function claimTokens(uint256 bidId) external;
-
-    /// @notice Claim tokens for multiple bids
-    /// @dev Anyone can claim tokens for bids of the same owner, the tokens are transferred to the owner
-    /// @dev A TokensClaimed event is emitted for each bid but only one token transfer will be made
-    /// @param owner The owner of the bids
-    /// @param bidIds The ids of the bids
-    function claimTokensBatch(address owner, uint256[] calldata bidIds) external;
-
     /// @notice Withdraw all of the currency raised
     /// @dev Can be called by anyone after the auction has ended
     function sweepCurrency() external;
-
-    /// @notice The block at which the auction can be claimed
-    function claimBlock() external view returns (uint64);
 
     /// @notice The address of the validation hook for the auction
     function validationHook() external view returns (IValidationHook);
@@ -206,6 +186,10 @@ interface IContinuousClearingAuction is
     /// @notice Sweep any leftover tokens to the tokens recipient
     /// @dev This function can only be called after the auction has ended
     function sweepUnsoldTokens() external;
+
+    /// @notice Burn the sold tokens if the auction has graduated
+    /// @dev This function can only be called after the auction has ended
+    function burnSoldTokens() external;
 
     /// @notice The currency raised as of the last checkpoint
     function currencyRaisedQ96_X7() external view returns (ValueX7);

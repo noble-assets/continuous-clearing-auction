@@ -137,16 +137,6 @@ contract SweepUnsoldTokensTest is BttBase {
         }
 
         assertEq(auction.sweepUnsoldTokensBlock(), block.number);
-
-        vm.roll(auction.claimBlock());
-        auction.claimTokens(bidId);
-
-        assertApproxEqAbs(
-            ERC20Mock(mParams.token).balanceOf(address(auction)),
-            0,
-            MAX_ALLOWABLE_DUST_WEI,
-            'more than dust left in the contract'
-        );
     }
 
     function test_GivenNotGraduated(

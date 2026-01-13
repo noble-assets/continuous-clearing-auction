@@ -34,7 +34,5 @@ contract MockContinuousClearingAuction is ContinuousClearingAuction {
 
     function modifier_onlyAfterAuctionIsOver() external onlyAfterAuctionIsOver {}
 
-    function modifier_onlyAfterClaimBlock() external onlyAfterClaimBlock {}
-
     function modifier_onlyActiveAuction() external onlyActiveAuction {}
 }

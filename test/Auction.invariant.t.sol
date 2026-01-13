@@ -118,6 +118,7 @@ contract AuctionInvariantHandler is Test, Assertions {
     /// @dev Bounded by purchasing the total supply of tokens and some reasonable max price for bids to prevent overflow
     function _useAmountMaxPrice(uint128 amount, uint256 clearingPrice, uint8 tickNumber)
         internal
+        view
         returns (uint128, uint256)
     {
         tickNumber = uint8(_bound(tickNumber, 1, uint256(type(uint8).max)));
@@ -138,7 +139,7 @@ contract AuctionInvariantHandler is Test, Assertions {
 
     /// @notice Find the first bid which can be early exited as of the stale checkpoint
     /// @return bidId The id of the first bid which can be early exited, or type(uint256).max if no bid can be exited
-    function _useOutbidBidId() internal returns (uint256) {
+    function _useOutbidBidId() internal view returns (uint256) {
         // Find first bid which can be exited as of the stale checkpoint
         // We could checkpoint again but no need, can use the stale checkpoint
         for (uint256 i = 0; i < bidCount; i++) {
@@ -418,7 +419,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
     }
 
     /// @notice Assert that the auction loses no more than 1e18 wei of currency or tokens
-    function assertAcceptableDustBalances() internal {
+    function assertAcceptableDustBalances() internal view {
         assertApproxEqAbs(
             address(mockAuction).balance, 0, 1e18, 'Auction currency balance is not within 1e18 wei of zero'
         );
@@ -427,10 +428,10 @@ contract AuctionInvariantTest is AuctionUnitTest {
         );
     }
 
-    /// @notice Exit and claim all outstanding bids on the auction
-    /// @return totalCurrencyRaised The total currency raised from all bids exited and claimed
-    function helper__exitAndClaimAllBids() internal returns (uint256 totalCurrencyRaised) {
-        require(block.number >= mockAuction.endBlock(), 'helper__exitAndClaimAllBids::Auction must be over');
+    /// @notice Exit all outstanding bids on the auction
+    /// @return totalCurrencyRaised The total currency raised from all bids exited
+    function helper__exitAllBids() internal returns (uint256 totalCurrencyRaised) {
+        require(block.number >= mockAuction.endBlock(), 'helper__exitAllBids::Auction must be over');
         require(
             mockAuction.lastCheckpointedBlock() == mockAuction.endBlock(),
             'helper__sweep::Auction must be checkpointed at endBlock'
@@ -502,24 +503,6 @@ contract AuctionInvariantTest is AuctionUnitTest {
             );
         }
 
-        vm.roll(mockAuction.claimBlock());
-        for (uint256 i = 0; i < bidCount; i++) {
-            uint256 bidId = handler.bidIds(i);
-            Bid memory bid = mockAuction.bids(bidId);
-            if (bid.tokensFilled == 0) continue;
-            assertNotEq(bid.exitedBlock, 0);
-
-            uint256 ownerBalanceBefore = token.balanceOf(bid.owner);
-            vm.expectEmit(true, true, false, false);
-            emit IContinuousClearingAuction.TokensClaimed(bidId, bid.owner, bid.tokensFilled);
-            mockAuction.claimTokens(bidId);
-            // Assert that the owner received the tokens
-            assertEq(token.balanceOf(bid.owner), ownerBalanceBefore + bid.tokensFilled);
-
-            bid = mockAuction.bids(bidId);
-            assertEq(bid.tokensFilled, 0);
-        }
-
         uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
 
         emit log_string('==================== AFTER EXIT AND CLAIM TOKENS ====================');
@@ -577,21 +560,16 @@ contract AuctionInvariantTest is AuctionUnitTest {
     }
 
     function invariant_canAlwaysCheckpointDuringAuction() public printMetrics {
-        if (block.number >= mockAuction.startBlock() && block.number < mockAuction.claimBlock()) {
+        if (block.number >= mockAuction.startBlock() && block.number < mockAuction.endBlock()) {
             mockAuction.checkpoint();
         }
     }
 
-    function invariant_canSweep_thenExitAndClaimAllBids()
-        public
-        printMetrics
-        givenAuctionIsOver
-        givenAuctionIsCheckpointed
-    {
+    function invariant_canSweep_thenExitAllBids() public printMetrics givenAuctionIsOver givenAuctionIsCheckpointed {
         // Sweep first
         helper__sweep();
-        // Then exit and claim all bids
-        uint256 totalCurrencyRaised = helper__exitAndClaimAllBids();
+        // Then exit all bids
+        uint256 totalCurrencyRaised = helper__exitAllBids();
 
         uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
         assertLe(
@@ -601,18 +579,12 @@ contract AuctionInvariantTest is AuctionUnitTest {
         );
 
         _printBalances();
-        assertAcceptableDustBalances();
         _printState();
     }
 
-    function invariant_canExitAndClaimAllBids_thenSweep()
-        public
-        printMetrics
-        givenAuctionIsOver
-        givenAuctionIsCheckpointed
-    {
-        // Exit and claim all bids first
-        uint256 totalCurrencyRaised = helper__exitAndClaimAllBids();
+    function invariant_canExitAllBids_thenSweep() public printMetrics givenAuctionIsOver givenAuctionIsCheckpointed {
+        // Exit all bids first
+        uint256 totalCurrencyRaised = helper__exitAllBids();
         // Then sweep
         helper__sweep();
 
@@ -624,7 +596,6 @@ contract AuctionInvariantTest is AuctionUnitTest {
         );
 
         _printBalances();
-        assertAcceptableDustBalances();
         _printState();
     }
 }

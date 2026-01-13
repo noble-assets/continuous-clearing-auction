@@ -208,16 +208,9 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         uint256 aliceBalanceBefore = address(alice).balance;
-        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 1, 0);
         assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
-
-        vm.roll(auction.claimBlock());
-        vm.expectEmit(true, true, true, true);
-        emit IContinuousClearingAuction.TokensClaimed(bidId, alice, 1000e18);
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
     /// forge-config: default.isolate = true
@@ -263,16 +256,9 @@ contract AuctionTest is AuctionBaseTest {
 
         vm.roll(auction.endBlock());
         uint256 aliceBalanceBefore = address(alice).balance;
-        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
 
         auction.exitPartiallyFilledBid(bidId, 1, 0);
         assertEq(address(alice).balance, aliceBalanceBefore + inputAmount / 2);
-
-        vm.roll(auction.claimBlock());
-        vm.expectEmit(true, true, true, true);
-        emit IContinuousClearingAuction.TokensClaimed(bidId, alice, 1000e18);
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 1000e18);
     }
 
     function test_submitBid_zeroSupply_exitBid_succeeds(uint128 _bidAmount, uint128 _maxPrice)
@@ -282,7 +268,6 @@ contract AuctionTest is AuctionBaseTest {
         givenGraduatedAuction
         givenFullyFundedAccount
         checkAuctionIsGraduated
-        checkAuctionIsSolvent
     {
         // 0 mps for first 50 blocks, then 200mps for the last 50 blocks
         params = params.withAuctionStepsData(AuctionStepsBuilder.init().addStep(0, 100).addStep(100e3, 100))
@@ -320,14 +305,9 @@ contract AuctionTest is AuctionBaseTest {
         // Alice will have received a refund if the bid was higher than the total supply
         assertGe(address(alice).balance, aliceBalanceBefore);
 
-        vm.roll(auction.claimBlock());
+        vm.roll(auction.endBlock());
         uint256 expectedTokensFilled = auction.bids(bidId).tokensFilled;
         vm.assume(expectedTokensFilled > 0);
-
-        vm.expectEmit(true, true, true, true);
-        emit IContinuousClearingAuction.TokensClaimed(bidId, alice, expectedTokensFilled);
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
     function test_submitBid_noRolloverSupply(uint128 _bidAmount, uint256 _maxPrice, uint256 _seed)
@@ -337,7 +317,6 @@ contract AuctionTest is AuctionBaseTest {
         givenGraduatedAuction
         givenFullyFundedAccount
         checkAuctionIsGraduated
-        checkAuctionIsSolvent
     {
         // Advance by one such that the auction is already started
         uint256 targetBlock =
@@ -357,12 +336,6 @@ contract AuctionTest is AuctionBaseTest {
 
         uint256 expectedTokensFilled = auction.bids(bidId).tokensFilled;
         vm.assume(expectedTokensFilled > 0);
-
-        vm.roll(auction.claimBlock());
-        vm.expectEmit(true, true, true, true);
-        emit IContinuousClearingAuction.TokensClaimed(bidId, alice, expectedTokensFilled);
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
     /// forge-config: default.isolate = true
@@ -588,14 +561,9 @@ contract AuctionTest is AuctionBaseTest {
             auction.exitPartiallyFilledBid(bidId, 1, 0);
         }
 
-        vm.roll(auction.claimBlock());
+        vm.roll(auction.endBlock());
         uint256 expectedTokensFilled = auction.bids(bidId).tokensFilled;
         vm.assume(expectedTokensFilled > 0);
-
-        vm.expectEmit(true, true, true, true);
-        emit IContinuousClearingAuction.TokensClaimed(bidId, alice, expectedTokensFilled);
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
     function test_exitBid_joinedLate_succeeds(uint128 _bidAmount, uint256 _maxPrice)
@@ -605,13 +573,10 @@ contract AuctionTest is AuctionBaseTest {
         givenGraduatedAuction
         givenFullyFundedAccount
         checkAuctionIsGraduated
-        checkAuctionIsSolvent
     {
         vm.roll(auction.endBlock() - 1);
         uint256 bidId1 =
             auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
-
-        uint256 aliceBalanceBefore = address(alice).balance;
 
         vm.roll(auction.endBlock());
         Checkpoint memory checkpoint = auction.checkpoint();
@@ -621,14 +586,9 @@ contract AuctionTest is AuctionBaseTest {
             auction.exitPartiallyFilledBid(bidId1, auction.endBlock() - 1, 0);
         }
 
-        vm.roll(auction.claimBlock());
+        vm.roll(auction.endBlock());
         uint256 expectedTokensFilled = auction.bids(bidId1).tokensFilled;
         vm.assume(expectedTokensFilled > 0);
-
-        vm.expectEmit(true, true, true, true);
-        emit IContinuousClearingAuction.TokensClaimed(bidId1, alice, expectedTokensFilled);
-        auction.claimTokens(bidId1);
-        assertEq(token.balanceOf(address(alice)), expectedTokensFilled);
     }
 
     function test_exitBid_beforeEndBlock_revertsWithCannotExitBid() public {
@@ -711,10 +671,6 @@ contract AuctionTest is AuctionBaseTest {
 
         // Expect no refund
         assertEq(address(alice).balance, aliceBalanceBefore);
-
-        vm.roll(auction.claimBlock());
-        auction.claimTokens(bidId);
-        assertEq(token.balanceOf(address(alice)), 1000e18);
     }
 
     /// forge-config: default.isolate = true
@@ -743,8 +699,6 @@ contract AuctionTest is AuctionBaseTest {
 
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 bobBalanceBefore = address(bob).balance;
-        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
-        uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
 
         vm.roll(auction.endBlock() + 1);
         vm.startPrank(alice);
@@ -757,20 +711,12 @@ contract AuctionTest is AuctionBaseTest {
         // Alice should partially fill for 250e18 tokens, spending 500e21 ETH
         // Meaning she should be refunded 1000e21 - 500e21 = 500e21 ETH
         assertEq(address(alice).balance, aliceBalanceBefore + 500e21);
-        vm.roll(auction.claimBlock());
-        auction.claimTokens(bidId);
-        vm.snapshotGasLastCall('claimTokens');
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 250e18);
-        vm.stopPrank();
 
         vm.startPrank(bob);
         auction.exitBid(bidId2);
         vm.snapshotGasLastCall('exitBid');
         // Bob purchased 750e18 tokens for a price of 2, so they should have spent all of their ETH.
         assertEq(address(bob).balance, bobBalanceBefore + 0);
-        vm.roll(auction.claimBlock());
-        auction.claimTokens(bidId2);
-        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 750e18);
         vm.stopPrank();
     }
 
@@ -808,9 +754,6 @@ contract AuctionTest is AuctionBaseTest {
         uint256 aliceBalanceBefore = address(alice).balance;
         uint256 bobBalanceBefore = address(bob).balance;
         uint256 charlieBalanceBefore = address(charlie).balance;
-        uint256 aliceTokenBalanceBefore = token.balanceOf(address(alice));
-        uint256 bobTokenBalanceBefore = token.balanceOf(address(bob));
-        uint256 charlieTokenBalanceBefore = token.balanceOf(address(charlie));
 
         // Roll to end of auction
         vm.roll(auction.endBlock());
@@ -838,26 +781,20 @@ contract AuctionTest is AuctionBaseTest {
         // Bob purchases 600/1000 * 250 = 150e18 tokens
         // - Spending 150e18 * 2000 = 300e21 ETH
         // - Refunded 1200e21 - 300e21 = 900e21 ETH
-        vm.roll(auction.claimBlock());
+        vm.roll(auction.endBlock());
 
         vm.startPrank(charlie);
         auction.exitBid(bidId3);
         assertEq(address(charlie).balance, charlieBalanceBefore + 0);
-        auction.claimTokens(bidId3);
-        assertEq(token.balanceOf(address(charlie)), charlieTokenBalanceBefore + 750e18);
         vm.stopPrank();
 
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId1, 1, 0);
         assertEq(address(alice).balance, aliceBalanceBefore + 600e21);
-        auction.claimTokens(bidId1);
-        assertEq(token.balanceOf(address(alice)), aliceTokenBalanceBefore + 100e18);
 
         vm.startPrank(bob);
         auction.exitPartiallyFilledBid(bidId2, 1, 0);
         assertEq(address(bob).balance, bobBalanceBefore + 900e21);
-        auction.claimTokens(bidId2);
-        assertEq(token.balanceOf(address(bob)), bobTokenBalanceBefore + 150e18);
         vm.stopPrank();
 
         // All tokens were sold
@@ -866,7 +803,7 @@ contract AuctionTest is AuctionBaseTest {
         auction.sweepUnsoldTokens();
     }
 
-    function test_exitPartiallyFilledBid_roundingError_succeeds() public checkAuctionIsSolvent {
+    function test_exitPartiallyFilledBid_roundingError_succeeds() public {
         address bob = makeAddr('bob');
         address charlie = makeAddr('charlie');
 
@@ -912,23 +849,19 @@ contract AuctionTest is AuctionBaseTest {
         assertEq(auction.clearingPrice(), tickNumberToPriceX96(5));
 
         // Roll to end of auction
-        vm.roll(auction.claimBlock());
+        vm.roll(auction.endBlock());
 
         vm.startPrank(charlie);
         auction.exitBid(bidId3);
-        auction.claimTokens(bidId3);
         auction.exitBid(bidId4);
-        auction.claimTokens(bidId4);
         vm.stopPrank();
 
         vm.startPrank(alice);
         auction.exitPartiallyFilledBid(bidId1, 3, 0);
-        auction.claimTokens(bidId1);
         vm.stopPrank();
 
         vm.startPrank(bob);
         auction.exitPartiallyFilledBid(bidId2, 3, 0);
-        auction.claimTokens(bidId2);
         vm.stopPrank();
     }
 
@@ -984,11 +917,7 @@ contract AuctionTest is AuctionBaseTest {
         emit IContinuousClearingAuction.BidExited(bidId2, alice, expectedTokensFilled, expectedCurrencyRefunded);
         newAuction.exitPartiallyFilledBid(bidId2, 3, 0);
 
-        vm.roll(newAuction.claimBlock());
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
-        newAuction.claimTokens(bidId1);
-        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
-        newAuction.claimTokens(bidId2);
+        vm.roll(newAuction.endBlock());
 
         // Expect all tokens were swept
         vm.expectEmit(true, true, true, true);
@@ -1514,7 +1443,8 @@ contract AuctionTest is AuctionBaseTest {
         ValueX7 expectedTotalCurrencyRaised = ValueX7.wrap(
             TOTAL_SUPPLY_Q96.fullMulDivUp(tickNumberToPriceX96(2) * (ConstantsLib.MPS - 100e3 * 10), FixedPoint96.Q96)
         );
-        emit IContinuousClearingAuction.CheckpointUpdated( // Yet the `cumulativeMps` should still be 100%
+        emit IContinuousClearingAuction.CheckpointUpdated(
+            // Yet the `cumulativeMps` should still be 100%
             startBlock + 40,
             tickNumberToPriceX96(2),
             ConstantsLib.MPS
@@ -1629,13 +1559,6 @@ contract AuctionTest is AuctionBaseTest {
         AuctionParameters memory paramsZeroFloorPrice = params.withFloorPrice(0);
         vm.expectRevert(ITickStorage.FloorPriceIsZero.selector);
         new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsZeroFloorPrice);
-    }
-
-    function test_auctionConstruction_revertsWithClaimBlockBeforeEndBlock() public {
-        AuctionParameters memory paramsClaimBlockBeforeEndBlock =
-            params.withClaimBlock(block.number + AUCTION_DURATION - 1).withEndBlock(block.number + AUCTION_DURATION);
-        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
-        new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, paramsClaimBlockBeforeEndBlock);
     }
 
     function test_auctionConstruction_revertsWithFundsRecipientZero() public {
@@ -1810,241 +1733,6 @@ contract AuctionTest is AuctionBaseTest {
         newAuction.exitPartiallyFilledBid(bidId, 1, 0);
     }
 
-    /// forge-config: default.fuzz.runs = 1000
-    function test_claimTokens_beforeBidExited_reverts(uint128 _bidAmount, uint256 _maxPrice)
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        // Submit a bid but don't exit it
-        uint256 bidId =
-            auction.submitBid{value: $bidAmount}($maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes(''));
-
-        // Try to claim tokens before the bid has been exited
-        vm.roll(auction.claimBlock());
-        vm.startPrank(alice);
-        vm.expectRevert(IContinuousClearingAuction.BidNotExited.selector);
-        auction.claimTokens(bidId);
-        vm.stopPrank();
-    }
-
-    function test_claimTokens_beforeClaimBlock_reverts(uint128 _bidAmount, uint128 _maxPrice)
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        uint256 bidId = auction.submitBid{value: $bidAmount}(
-            $maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
-
-        // Exit the bid
-        vm.roll(auction.endBlock());
-        Checkpoint memory checkpoint = auction.checkpoint();
-        if ($maxPrice > checkpoint.clearingPrice) {
-            auction.exitBid(bidId);
-        } else {
-            auction.exitPartiallyFilledBid(bidId, 1, 0);
-        }
-
-        // Go back to before the claim block
-        vm.roll(auction.claimBlock() - 1);
-
-        // Try to claim tokens before the claim block
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
-        auction.claimTokens(bidId);
-    }
-
-    function test_claimTokens_tokenTransferFails_reverts(uint128 _bidAmount, uint128 _maxPrice)
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        ContinuousClearingAuction failingAuction = helper__deployAuctionWithFailingToken();
-
-        uint256 bidId = failingAuction.submitBid{value: $bidAmount}(
-            $maxPrice, $bidAmount, alice, tickNumberToPriceX96(1), bytes('')
-        );
-
-        vm.roll(auction.endBlock() + 1);
-        Checkpoint memory checkpoint = failingAuction.checkpoint();
-        if ($maxPrice > checkpoint.clearingPrice) {
-            failingAuction.exitBid(bidId);
-        } else {
-            failingAuction.exitPartiallyFilledBid(bidId, 1, 0);
-        }
-
-        uint256 expectedTokensFilled = failingAuction.bids(bidId).tokensFilled;
-        vm.assume(expectedTokensFilled > 0);
-
-        vm.roll(failingAuction.claimBlock());
-
-        vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
-        failingAuction.claimTokens(bidId);
-    }
-
-    function test_claimTokensBatch_notSameOwner_reverts() public givenFullyFundedAccount {
-        uint256 bidId0 = helper__submitBid(auction, alice, TOTAL_SUPPLY - 1, tickNumberToPriceX96(2));
-        uint256 bidId1 = helper__submitBid(auction, bob, TOTAL_SUPPLY - 1, tickNumberToPriceX96(2));
-
-        vm.roll(auction.endBlock());
-        auction.exitBid(bidId0);
-        auction.exitBid(bidId1);
-
-        uint256[] memory bids = new uint256[](2);
-        bids[0] = bidId0;
-        bids[1] = bidId1;
-
-        vm.roll(auction.claimBlock());
-        vm.expectRevert(
-            abi.encodeWithSelector(IContinuousClearingAuction.BatchClaimDifferentOwner.selector, alice, bob)
-        );
-        auction.claimTokensBatch(alice, bids);
-    }
-
-    /// forge-config: default.fuzz.runs = 1000
-    function test_claimTokensBatch_beforeBidExited_reverts(uint128 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
-        // Ensure an amount of at least 1 for every bid
-        $bidAmount = uint128(bound(_bidAmount, _numberOfBids, type(uint128).max));
-
-        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
-
-        vm.roll(auction.claimBlock());
-        vm.expectRevert(IContinuousClearingAuction.BidNotExited.selector);
-        auction.claimTokensBatch(alice, bids);
-    }
-
-    /// forge-config: default.fuzz.runs = 1000
-    function test_claimTokensBatch_beforeClaimBlock_reverts(
-        uint128 _bidAmount,
-        uint128 _numberOfBids,
-        uint256 _maxPrice
-    )
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
-        vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / (TOTAL_SUPPLY + _numberOfBids));
-        $bidAmount = uint128(
-            _bound(
-                $bidAmount, (TOTAL_SUPPLY + _numberOfBids).fullMulDivUp($maxPrice, FixedPoint96.Q96), type(uint128).max
-            )
-        );
-
-        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
-
-        vm.roll(auction.endBlock());
-        Checkpoint memory checkpoint = auction.checkpoint();
-        for (uint256 i = 0; i < _numberOfBids; i++) {
-            if ($maxPrice > checkpoint.clearingPrice) {
-                auction.exitBid(bids[i]);
-            } else {
-                auction.exitPartiallyFilledBid(bids[i], 1, 0);
-            }
-        }
-
-        vm.roll(auction.claimBlock() - 1);
-        vm.expectRevert(IContinuousClearingAuction.NotClaimable.selector);
-        auction.claimTokensBatch(alice, bids);
-    }
-
-    /// forge-config: default.fuzz.runs = 1000
-    function test_claimTokensBatch_tokenTransferFails_reverts(
-        uint128 _bidAmount,
-        uint128 _numberOfBids,
-        uint256 _maxPrice
-    )
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
-        vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / (TOTAL_SUPPLY + _numberOfBids));
-        $bidAmount = uint128(
-            _bound(
-                $bidAmount, (TOTAL_SUPPLY + _numberOfBids).fullMulDivUp($maxPrice, FixedPoint96.Q96), type(uint128).max
-            )
-        );
-
-        ContinuousClearingAuction failingAuction = helper__deployAuctionWithFailingToken();
-
-        uint256[] memory bids = helper__submitNBids(failingAuction, alice, $bidAmount, _numberOfBids, $maxPrice);
-
-        vm.roll(failingAuction.endBlock() + 1);
-        Checkpoint memory checkpoint = failingAuction.checkpoint();
-        for (uint256 i = 0; i < _numberOfBids; i++) {
-            if ($maxPrice > checkpoint.clearingPrice) {
-                failingAuction.exitBid(bids[i]);
-            } else {
-                failingAuction.exitPartiallyFilledBid(bids[i], 1, 0);
-            }
-        }
-
-        vm.roll(failingAuction.claimBlock());
-        vm.expectRevert(CurrencyLibrary.ERC20TransferFailed.selector);
-        failingAuction.claimTokensBatch(alice, bids);
-    }
-
-    /// forge-config: default.fuzz.runs = 1000
-    function test_claimTokensBatch_succeeds(uint128 _bidAmount, uint128 _numberOfBids, uint256 _maxPrice)
-        public
-        givenValidMaxPrice(_maxPrice, TOTAL_SUPPLY)
-        givenValidBidAmount(_bidAmount)
-        givenGraduatedAuction
-        givenFullyFundedAccount
-    {
-        _numberOfBids = uint128(bound(_numberOfBids, 1, 10));
-        // Because each bid will be a little less due to rounding
-        vm.assume($maxPrice < (uint256(type(uint128).max) * FixedPoint96.Q96) / (TOTAL_SUPPLY + _numberOfBids));
-        $bidAmount = uint128(
-            _bound(
-                $bidAmount, (TOTAL_SUPPLY + _numberOfBids).fullMulDivUp($maxPrice, FixedPoint96.Q96), type(uint128).max
-            )
-        );
-
-        uint256[] memory bids = helper__submitNBids(auction, alice, $bidAmount, _numberOfBids, $maxPrice);
-
-        vm.roll(auction.endBlock());
-        Checkpoint memory checkpoint = auction.checkpoint();
-        for (uint256 i = 0; i < _numberOfBids; i++) {
-            if ($maxPrice > checkpoint.clearingPrice) {
-                auction.exitBid(bids[i]);
-            } else {
-                auction.exitPartiallyFilledBid(bids[i], 1, 0);
-            }
-        }
-
-        // All bids should clear the same number of tokens
-        Bid memory bid = auction.bids(bids[0]);
-        uint256 amountClearedPerBid = bid.tokensFilled;
-
-        vm.roll(auction.claimBlock());
-        vm.expectEmit(true, true, true, true);
-        for (uint256 i = 0; i < _numberOfBids; i++) {
-            emit IContinuousClearingAuction.TokensClaimed(bids[i], alice, amountClearedPerBid);
-        }
-        auction.claimTokensBatch(alice, bids);
-
-        assertEq(token.balanceOf(alice), amountClearedPerBid * _numberOfBids);
-    }
-
     function test_sweepCurrency_beforeAuctionEnds_reverts() public {
         vm.startPrank(auction.fundsRecipient());
         vm.roll(auction.endBlock() - 1);
@@ -2097,7 +1785,7 @@ contract AuctionTest is AuctionBaseTest {
     }
 
     // Test that all of the state getters for constants / immutable variables are correct
-    function test_constructor_immutable_getters() public {
+    function test_constructor_immutable_getters() public view {
         assertEq(Currency.unwrap(auction.currency()), ETH_SENTINEL);
         assertEq(address(auction.token()), address(token));
         assertEq(auction.totalSupply(), TOTAL_SUPPLY);
@@ -2164,9 +1852,8 @@ contract AuctionTest is AuctionBaseTest {
         // Advance to the end of the auction
         vm.roll(auction.endBlock() + 1);
 
-        // Exit the bids and claim ATP
+        // Exit the bids
         auction.exitPartiallyFilledBid(bidId, 3, 0);
-        auction.claimTokens(bidId);
     }
 
     /// Super large tick spacing
@@ -2194,6 +1881,210 @@ contract AuctionTest is AuctionBaseTest {
         vm.roll(block.number + 1);
         // Expect that we can call checkpoint
         auction.checkpoint();
+    }
+
+    // burnSoldTokens tests
+
+    function test_burnSoldTokens_succeeds() public {
+        // Submit a bid to ensure auction graduates
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock());
+
+        // Sweep unsold tokens first (required)
+        auction.sweepUnsoldTokens();
+
+        // Get balance before burn
+        uint256 balanceBefore = token.balanceOf(address(auction));
+
+        // Burn should succeed
+        vm.expectEmit(true, true, true, true);
+        emit IContinuousClearingAuction.TokensBurned(balanceBefore);
+        auction.burnSoldTokens();
+
+        // Verify tokens were burned
+        assertEq(token.balanceOf(address(auction)), 0);
+        assertEq(auction.burnBlock(), block.number);
+    }
+
+    function test_burnSoldTokens_beforeAuctionEnds_reverts() public {
+        // Submit a bid
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock() - 1);
+
+        vm.expectRevert(IContinuousClearingAuction.AuctionIsNotOver.selector);
+        auction.burnSoldTokens();
+    }
+
+    function test_burnSoldTokens_notGraduated_reverts() public {
+        // Create auction that never graduates
+        params = params.withRequiredCurrencyRaised(type(uint128).max);
+        ContinuousClearingAuction newAuction = new ContinuousClearingAuction(address(token), TOTAL_SUPPLY, params);
+        token.mint(address(newAuction), TOTAL_SUPPLY);
+        newAuction.onTokensReceived();
+
+        // Submit a small bid (won't graduate)
+        newAuction.submitBid{value: inputAmountForTokens(100e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(100e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(newAuction.endBlock());
+
+        // Sweep unsold tokens first
+        newAuction.sweepUnsoldTokens();
+
+        // Burn should fail because not graduated
+        vm.expectRevert(ITokenCurrencyStorage.NotGraduated.selector);
+        newAuction.burnSoldTokens();
+    }
+
+    function test_burnSoldTokens_withoutSweepingUnsoldTokens_reverts() public {
+        // Submit a bid to ensure auction graduates
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock());
+
+        // Try to burn without sweeping unsold tokens first
+        vm.expectRevert(ITokenCurrencyStorage.MustSweepUnsoldTokensFirst.selector);
+        auction.burnSoldTokens();
+    }
+
+    function test_burnSoldTokens_alreadyBurned_reverts() public {
+        // Submit a bid to ensure auction graduates
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock());
+
+        // Sweep unsold tokens first
+        auction.sweepUnsoldTokens();
+
+        // First burn should succeed
+        auction.burnSoldTokens();
+
+        // Second burn should fail
+        vm.expectRevert(IContinuousClearingAuction.AlreadyBurned.selector);
+        auction.burnSoldTokens();
+    }
+
+    function test_burnSoldTokens_partialSale_succeeds() public {
+        // Submit a bid for only half the supply
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY / 2, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY / 2, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock());
+
+        // Check tokens recipient balance before
+        uint256 tokensRecipientBalanceBefore = token.balanceOf(auction.tokensRecipient());
+
+        // Sweep unsold tokens first - should send unsold to tokensRecipient
+        auction.sweepUnsoldTokens();
+
+        // Verify unsold tokens were sent to recipient
+        assertGt(token.balanceOf(auction.tokensRecipient()), tokensRecipientBalanceBefore);
+
+        // Get remaining balance (sold tokens)
+        uint256 soldTokensBalance = token.balanceOf(address(auction));
+
+        // Burn sold tokens
+        vm.expectEmit(true, true, true, true);
+        emit IContinuousClearingAuction.TokensBurned(soldTokensBalance);
+        auction.burnSoldTokens();
+
+        // Verify auction has no tokens left
+        assertEq(token.balanceOf(address(auction)), 0);
+    }
+
+    function test_burnSoldTokens_afterExitBids_succeeds() public {
+        // Submit bids
+        uint256 bidId1 = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(500e18, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        uint256 bidId2 = auction.submitBid{value: inputAmountForTokens(500e18, tickNumberToPriceX96(3))}(
+            tickNumberToPriceX96(3),
+            inputAmountForTokens(500e18, tickNumberToPriceX96(3)),
+            makeAddr('bob'),
+            tickNumberToPriceX96(2),
+            bytes('')
+        );
+
+        vm.roll(block.number + 1);
+        auction.checkpoint();
+
+        vm.roll(auction.endBlock());
+
+        // Exit bids
+        auction.exitPartiallyFilledBid(bidId1, 1, 0);
+        auction.exitBid(bidId2);
+
+        // Verify tokensFilled is recorded
+        assertGt(auction.bids(bidId1).tokensFilled + auction.bids(bidId2).tokensFilled, 0);
+
+        // Sweep and burn
+        auction.sweepUnsoldTokens();
+        auction.burnSoldTokens();
+
+        // Verify tokens burned
+        assertEq(token.balanceOf(address(auction)), 0);
+    }
+
+    function test_burnSoldTokens_isPermissionless() public {
+        // Submit a bid to ensure auction graduates
+        auction.submitBid{value: inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2))}(
+            tickNumberToPriceX96(2),
+            inputAmountForTokens(TOTAL_SUPPLY, tickNumberToPriceX96(2)),
+            alice,
+            tickNumberToPriceX96(1),
+            bytes('')
+        );
+
+        vm.roll(auction.endBlock());
+        auction.sweepUnsoldTokens();
+
+        // Random address can call burn
+        address randomCaller = makeAddr('randomCaller');
+        vm.prank(randomCaller);
+        auction.burnSoldTokens();
+
+        assertEq(token.balanceOf(address(auction)), 0);
     }
 
     function logAmountWithDecimal(string memory key, uint256 amount) internal {

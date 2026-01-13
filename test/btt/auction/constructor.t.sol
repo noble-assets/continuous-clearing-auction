@@ -24,16 +24,6 @@ contract ConstructorTest is BttBase {
      */
     uint256 MAX_LIQUIDITY_BOUND = 191_757_530_477_355_300_863_043_035_987_968;
 
-    function test_WhenClaimBlockLTEndBlock(AuctionFuzzConstructorParams memory _params) external {
-        // it reverts with {ClaimBlockIsBeforeEndBlock}
-
-        AuctionFuzzConstructorParams memory mParams = validAuctionConstructorInputs(_params);
-        mParams.parameters.claimBlock = uint64(bound(mParams.parameters.claimBlock, 0, mParams.parameters.endBlock - 1));
-
-        vm.expectRevert(IContinuousClearingAuction.ClaimBlockIsBeforeEndBlock.selector);
-        new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
-    }
-
     function test_WhenClaimBlockGEEndBlock(AuctionFuzzConstructorParams memory _params, uint64 _claimBlock)
         external
         setupAuctionConstructorParams(_params)
@@ -52,7 +42,7 @@ contract ConstructorTest is BttBase {
             new ContinuousClearingAuction(mParams.token, mParams.totalSupply, mParams.parameters);
 
         assertEq(auction.MAX_BID_PRICE(), computedMaxBidPrice);
-        assertEq(auction.claimBlock(), mParams.parameters.claimBlock);
+        assertEq(auction.endBlock(), mParams.parameters.endBlock);
         assertEq(address(auction.validationHook()), address(mParams.parameters.validationHook));
     }
 
