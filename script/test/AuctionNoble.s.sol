@@ -6,7 +6,6 @@ import {AuctionParameters} from '../../src/interfaces/IContinuousClearingAuction
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
 import {IERC20} from 'forge-std/interfaces/IERC20.sol';
-import {MockERC20} from 'solmate/src/test/utils/mocks/MockERC20.sol';
 
 interface IPermit2 {
     function approve(address token, address spender, uint160 amount, uint48 expiration) external;
