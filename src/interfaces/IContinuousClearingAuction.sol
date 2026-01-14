@@ -188,7 +188,7 @@ interface IContinuousClearingAuction is
     function sweepUnsoldTokens() external;
 
     /// @notice Burn the sold tokens if the auction has graduated
-    /// @dev This function can only be called after the auction has ended
+    /// @dev This function can only be called after the auction has ended and the unsold tokens have been swept
     function burnSoldTokens() external;
 
     /// @notice The currency raised as of the last checkpoint
