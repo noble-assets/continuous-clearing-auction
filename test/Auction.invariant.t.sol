@@ -505,7 +505,7 @@ contract AuctionInvariantTest is AuctionUnitTest {
 
         uint256 expectedCurrencyRaised = mockAuction.currencyRaised();
 
-        emit log_string('==================== AFTER EXIT AND CLAIM TOKENS ====================');
+        emit log_string('==================== AFTER EXIT ====================');
         emit log_named_uint('bidCount', handler.bidCount());
         emit log_named_uint('auction duration (blocks)', mockAuction.endBlock() - mockAuction.startBlock());
         emit log_named_decimal_uint('auction floor price', mockAuction.floorPrice(), 96);
