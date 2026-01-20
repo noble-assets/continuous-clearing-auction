@@ -41,14 +41,12 @@ Addresses are cannonical across select EVM chains. If it is not already deployed
 > \*v1.0.0-candidate is the initial version of CCA and is NOT recommended for production use. For more details, see the [Changelog](./CHANGELOG.md).
 
 ## Audits
+The code has been audited by Spearbit, OpenZeppelin, and ABDK Consulting. The most recent audits for v1.1.0 are linked below. For a full list of audits, see [Audits](./docs/audits/README.md).
 
 | Version | Date       | Report                                                              |
 | ------- | ---------- | ------------------------------------------------------------------- |
-| v1.0.0  | 11/11/2025 | [Spearbit](./docs/audits/Spearbit_Nov_11_2025.pdf)                  |
-| v1.0.0  | 10/21/2025 | [OpenZeppelin](./docs/audits/OpenZeppelin_v1.0.0.pdf)               |
-| v1.0.0  | 10/19/2025 | [Spearbit](./docs/audits/Spearbit_v1.0.0.pdf)                       |
-| v1.0.0  | 10/19/2025 | [ABDK Consulting](./docs/audits/ABDK_Uniswap_TWAPAuction_v_1_0.pdf) |
-| v1.0.0  | 08/25/2025 | [OpenZeppelin](./docs/audits/OpenZeppelin_v0.pdf)                   |
+| v1.1.0  | 01/20/2026 |                 |
+| v1.1.0  | 01/20/2026 |                 |
 
 ### Bug bounty
 
