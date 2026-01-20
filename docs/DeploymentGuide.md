@@ -2,6 +2,13 @@
 
 Continuous Clearing Auction instances are deployed via Factory pattern. The factory contract has no parameters and can be deployed to the same address across all compatible EVM chains.
 
+## Factory Deployment
+The Factory contract can be deployed via the [DeployContinuousAuctionFactoryScript](../script/deploy/DeployContinuousAuctionFactory.s.sol). It deploys to the same address where the foundry CREATE2 deployer is deployed.
+
+```bash
+forge script script/deploy/DeployContinuousAuctionFactory.s.sol:DeployContinuousAuctionFactoryScript --rpc-url <rpc_url> --broadcast --private-key <private_key>
+```
+
 ## Deploying via Factory
 The Factory contract has a simple interface (from [IContinuousClearingAuctionFactory.sol](./src/interfaces/IContinuousClearingAuctionFactory.sol)):
 ```solidity

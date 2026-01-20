@@ -29,13 +29,13 @@ forge test
 
 CCA instances are deployed via the [ContinuousClearingAuctionFactory](./src/ContinuousClearingAuctionFactory.sol).
 
-Addresses are cannonical across select EVM chains.
+Addresses are cannonical across select EVM chains. If it is not already deployed, it can be deployed by anyone following the [Deployment Guide](./docs/DeploymentGuide.md).
 
 ### ContinuousClearingAuctionFactory
 
 | Network  | Address                                    | Commit Hash                              | Version          |
 | -------- | ------------------------------------------ | ---------------------------------------- | ---------------- |
-| v1.1.0   | 0xcca110c1136B93Eb113cceae3C25e52E180B32C9 |                                          |                  |
+| v1.1.0   | 0xcca110c1136B93Eb113cceae3C25e52E180B32C9 | 0e0511f26e86e08f9cad3888803c53aa45a6f280 | v1.1.0           |
 | v1.0.0\* | 0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D | 154fd189022858707837112943c09346869c964f | v1.0.0-candidate |
 
 > \*v1.0.0-candidate is the initial version of CCA and is NOT recommended for production use. For more details, see the [Changelog](./docs/CHANGELOG.md).
