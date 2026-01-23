@@ -480,7 +480,10 @@ contract ContinuousClearingAuction is
         Bid storage $bid = _getBid(_bidId);
         address owner = $bid.owner;
 
-        uint256 refund = ($bid.amountQ96 - _currencySpentQ96) >> FixedPoint96.RESOLUTION;
+        uint256 bidAmountQ96 = $bid.amountQ96;
+        // In edge cases where a bid spends all of its currency across fully filled and partially filled checkpoints,
+        // the sum of currencySpent can be rounded up to one wei more than the bid amount. We clamp the refund to the bid amount.
+        uint256 refund = FixedPointMathLib.saturatingSub(bidAmountQ96, _currencySpentQ96) >> FixedPoint96.RESOLUTION;
 
         $bid.tokensFilled = _tokensFilled;
         $bid.exitedBlock = uint64(_getBlockNumberish());
