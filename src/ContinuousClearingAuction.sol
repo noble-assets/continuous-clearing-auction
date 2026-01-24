@@ -207,7 +207,7 @@ contract ContinuousClearingAuction is
         // 2) If the clearing price is exactly on an initialized tick that has demand, account for the partially filled
         //    bids at the clearing tick. There are two ways to derive the at-clearing currencyRaised when the price is
         //    not rounded up:
-        //       (A) total implied currency at the rounded-up price − contribution from above-clearing
+        //       (A) total implied currencyRaised at the rounded-up price − contribution from above-clearing
         //       (B) tick demand at clearing × deltaMps
         //    If the clearing price was rounded up to the tick boundary, (A) can exceed (B); cap with min(A, B).
 
@@ -215,48 +215,52 @@ contract ContinuousClearingAuction is
         uint256 deltaMpsU = uint256(_deltaMps);
         uint256 sumAboveQ96 = $sumCurrencyDemandAboveClearingQ96;
 
-        // Find the base case where all demand is strictly above the clearing price
-        uint256 currencyFromAboveQ96X7;
+        // The base case is where all demand sits strictly above the clearing price
+        uint256 currencyRaisedDeltaQ96X7;
         unchecked {
-            currencyFromAboveQ96X7 = sumAboveQ96 * deltaMpsU;
+            currencyRaisedDeltaQ96X7 = sumAboveQ96 * deltaMpsU; // Overflow prevented by _submitBid::InvalidBidUnableToClear()
         }
 
-        // When the clearing price equals a tick with demand (partially filled tick)
-        // bidders at that tick can be partially filled. We split the currency raised into:
+        // When the clearing price is a tick with non zero demand
+        // bidders at that tick can be partially filled. We split the currencyRaised into:
         // - (1) above-clearing contribution (already computed) and
         // - (2) at-clearing contribution.
         if (priceQ96 % TICK_SPACING == 0) {
             uint256 demandAtPriceQ96 = _getTick(priceQ96).currencyDemandQ96;
             if (demandAtPriceQ96 > 0) {
-                uint256 currencyRaisedAboveClearingQ96X7 = currencyFromAboveQ96X7;
+                // Cache and rename the above-clearing contribution
+                uint256 currencyRaisedAboveClearingQ96X7 = currencyRaisedDeltaQ96X7;
 
-                // (A) Total implied currency at the (rounded-up) clearing price for this delta:
-                //     TOTAL_SUPPLY × priceQ96 (Q96) × deltaMps (X7) = Q96*X7
-                //     Note: on a tick boundary we use the rounded-up clearing price, which can slightly overestimate.
+                // Total implied currencyRaised at the (potentially rounded-up) clearing price:
+                // = TOTAL_SUPPLY × priceQ96 (Q96) × deltaMps (X7) = Q96*X7
+                // Note: this will be an overestimate if the price is rounded up
                 uint256 totalCurrencyForDeltaQ96X7;
                 unchecked {
                     totalCurrencyForDeltaQ96X7 = (uint256(TOTAL_SUPPLY) * priceQ96) * deltaMpsU;
                 }
 
-                // Portion attributable to the clearing tick by subtraction: A − above-clearing
-                uint256 demandAtClearingQ96X7 = totalCurrencyForDeltaQ96X7 - currencyRaisedAboveClearingQ96X7;
+                // (A) Derived contribution from the clearing tick by substracting
+                //     the above-clearing contribution from the total implied currencyRaised
+                uint256 calculatedCurrencyRaisedAtClearingQ96X7 =
+                    totalCurrencyForDeltaQ96X7 - currencyRaisedAboveClearingQ96X7;
 
-                // (B) Expected currency from bids at the clearing tick, scaling the tick demand by deltaMps
-                uint256 expectedAtClearingTickQ96X7;
+                // (B) Maximum possible currencyRaised from bids at the clearing tick, scaling the tick demand by deltaMps
+                uint256 maximumCurrencyRaisedAtClearingQ96X7;
                 unchecked {
-                    expectedAtClearingTickQ96X7 = demandAtPriceQ96 * deltaMpsU;
+                    maximumCurrencyRaisedAtClearingQ96X7 = demandAtPriceQ96 * deltaMpsU;
                 }
 
-                // If price was rounded up, (A) can exceed (B). In that case, at-clearing contribution is bounded by actual
+                // If price was rounded up, (A) can exceed (B). In that case, currencyRaised from the clearing tick is bounded by actual
                 // tick demand; take min((A), (B)). If the price was not rounded up, (A) == (B).
-                uint256 currencyAtClearingTickQ96X7 =
-                    FixedPointMathLib.min(demandAtClearingQ96X7, expectedAtClearingTickQ96X7);
+                uint256 currencyRaisedAtClearingQ96X7 = FixedPointMathLib.min(
+                    calculatedCurrencyRaisedAtClearingQ96X7, maximumCurrencyRaisedAtClearingQ96X7
+                );
 
-                // Actual currency raised across this delta = above-clearing + at-clearing
-                currencyFromAboveQ96X7 = currencyAtClearingTickQ96X7 + currencyRaisedAboveClearingQ96X7;
+                // Change in currency raised = currency raised at clearing + currency raised above clearing
+                currencyRaisedDeltaQ96X7 = currencyRaisedAtClearingQ96X7 + currencyRaisedAboveClearingQ96X7;
                 // Track cumulative currency raised exactly at this clearing price (used for partial exits)
                 _checkpoint.currencyRaisedAtClearingPriceQ96_X7 = ValueX7.wrap(
-                    ValueX7.unwrap(_checkpoint.currencyRaisedAtClearingPriceQ96_X7) + currencyAtClearingTickQ96X7
+                    ValueX7.unwrap(_checkpoint.currencyRaisedAtClearingPriceQ96_X7) + currencyRaisedAtClearingQ96X7
                 );
             }
         }
@@ -264,10 +268,10 @@ contract ContinuousClearingAuction is
         // Convert currency to tokens at price, rounding up, and update global cleared tokens.
         // Intentional round-up leaves a small amount of dust to sweep, ensuring cleared tokens never exceed TOTAL_SUPPLY
         // even when using rounded-up clearing prices on tick boundaries.
-        uint256 tokensClearedQ96X7 = currencyFromAboveQ96X7.fullMulDivUp(FixedPoint96.Q96, priceQ96);
+        uint256 tokensClearedQ96X7 = currencyRaisedDeltaQ96X7.fullMulDivUp(FixedPoint96.Q96, priceQ96);
         $totalClearedQ96_X7 = ValueX7.wrap(ValueX7.unwrap($totalClearedQ96_X7) + tokensClearedQ96X7);
         // Update global currency raised
-        $currencyRaisedQ96_X7 = ValueX7.wrap(ValueX7.unwrap($currencyRaisedQ96_X7) + currencyFromAboveQ96X7);
+        $currencyRaisedQ96_X7 = ValueX7.wrap(ValueX7.unwrap($currencyRaisedQ96_X7) + currencyRaisedDeltaQ96X7);
 
         _checkpoint.cumulativeMps += _deltaMps;
         // Harmonic-mean accumulator: add (mps / price) using the rounded-up clearing price for this increment
