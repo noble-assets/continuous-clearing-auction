@@ -570,16 +570,15 @@ contract ContinuousClearingAuction is
         if (bid.exitedBlock != 0) revert BidAlreadyExited();
         Checkpoint memory finalCheckpoint = _getFinalCheckpoint();
         if (!_isGraduated()) {
-            // In the case that the auction did not graduate, fully refund the bid
+            // Fully refund the bid if the auction did not graduate, since it is over
             return _processExit(_bidId, 0, 0);
         }
-        // Only bids with a max price strictly above the final clearing price can be exited via `exitBid`
+        // Only bids with a maxPrice strictly above the final clearing price can be exited in this function
         if (bid.maxPrice <= finalCheckpoint.clearingPrice) revert CannotExitBid();
 
-        // Account for the fully filled checkpoints
-        Checkpoint memory startCheckpoint = _getCheckpoint(bid.startBlock);
+        // Calculate the tokens and currency spent from the fully filled checkpoints
         (uint256 tokensFilled, uint256 currencySpentQ96) =
-            _accountFullyFilledCheckpoints(finalCheckpoint, startCheckpoint, bid);
+            _accountFullyFilledCheckpoints(finalCheckpoint, _getCheckpoint(bid.startBlock), bid);
 
         _processExit(_bidId, tokensFilled, currencySpentQ96);
     }
@@ -588,8 +587,9 @@ contract ContinuousClearingAuction is
     function exitPartiallyFilledBid(uint256 _bidId, uint64 _lastFullyFilledCheckpointBlock, uint64 _outbidBlock)
         external
     {
-        // Checkpoint before checking any of the hints because they could depend on the latest checkpoint
+        // Checkpoint first as the validity of the hints depend on the latest state
         Checkpoint memory currentBlockCheckpoint = checkpoint();
+        // Cache the current block number
         uint256 currentBlockNumberIsh = _getBlockNumberish();
 
         Bid memory bid = _getBid(_bidId);
@@ -607,11 +607,10 @@ contract ContinuousClearingAuction is
         uint256 bidMaxPrice = bid.maxPrice;
         uint64 bidStartBlock = bid.startBlock;
 
-        // Get the last fully filled checkpoint from the user's provided hint
         Checkpoint memory lastFullyFilledCheckpoint = _getCheckpoint(_lastFullyFilledCheckpointBlock);
-        // Since `lastFullyFilledCheckpointBlock` points to the last fully filled Checkpoint, it must be < bid.maxPrice
-        // The next Checkpoint after `lastFullyFilledCheckpoint` must be partially or fully filled (clearingPrice >= bid.maxPrice)
-        // `lastFullyFilledCheckpoint` also cannot be before the bid's startCheckpoint
+        // Since `lastFullyFilledCheckpointBlock` must be the last fully filled Checkpoint, it must be < bid.maxPrice
+        // And the bid must be partially filled or outbid (clearingPrice >= bid.maxPrice) in the next Checkpoint.
+        // `lastFullyFilledCheckpoint` MUST be at least the bid's startCheckpoint since new bids must be at or above the current clearing price.
         if (
             lastFullyFilledCheckpoint.clearingPrice >= bidMaxPrice
                 || _getCheckpoint(lastFullyFilledCheckpoint.next).clearingPrice < bidMaxPrice
@@ -620,26 +619,17 @@ contract ContinuousClearingAuction is
             revert InvalidLastFullyFilledCheckpointHint();
         }
 
-        // There is guaranteed to be a checkpoint at the bid's startBlock because we always checkpoint before bid submission
-        Checkpoint memory startCheckpoint = _getCheckpoint(bidStartBlock);
-
-        // Initialize the tokens filled and currency spent trackers
-        uint256 tokensFilled;
-        uint256 currencySpentQ96;
-
-        // If the lastFullyFilledCheckpoint is provided, account for the fully filled checkpoints
-        if (lastFullyFilledCheckpoint.clearingPrice > 0) {
-            // Assign the calculated tokens filled and currency spent to `tokensFilled` and `currencySpentQ96`
-            (tokensFilled, currencySpentQ96) =
-                _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, startCheckpoint, bid);
-        }
+        // Calculate the tokens and currency spent for the fully filled checkpoints
+        // If the bid is outbid in the same block it is submitted in, these two checkpoints will be identical.
+        // The extra gas to check for this isn't worth it since the returned values will be 0.
+        (uint256 tokensFilled, uint256 currencySpentQ96) =
+            _accountFullyFilledCheckpoints(lastFullyFilledCheckpoint, _getCheckpoint(bidStartBlock), bid);
 
         // Upper checkpoint is the last checkpoint where the bid is partially filled
         Checkpoint memory upperCheckpoint;
-        // If outbidBlock is not zero, the bid was outbid and the bidder is requesting an early exit
-        // This can be done before the auction's endBlock
+        // If outbidBlock is not zero, the bid was outbid and the bidder is requesting an early exit before the end of the auction
         if (_outbidBlock != 0) {
-            // If the provided hint is the current block, use the checkpoint returned by `checkpoint()` instead of getting it from storage
+            // If the provided hint is the current block, use the checkpoint on the stack instead of getting it from storage
             Checkpoint memory outbidCheckpoint;
             if (_outbidBlock == currentBlockNumberIsh) {
                 outbidCheckpoint = currentBlockCheckpoint;
@@ -653,11 +643,10 @@ contract ContinuousClearingAuction is
                 revert InvalidOutbidBlockCheckpointHint();
             }
         } else {
-            // The only other partially exitable case is if the auction ends with the clearing price equal to the bid's max price
+            // The only other valid partial exit case is if the final clearing price is equal to the bid's maxPrice.
             // These bids can only be exited after the auction ends
             if (currentBlockNumberIsh < END_BLOCK) revert CannotPartiallyExitBidBeforeEndBlock();
-            // Set the upper checkpoint to the checkpoint returned when we initially called `checkpoint()`
-            // This must be the final checkpoint because `checkpoint()` will return the final checkpoint after the auction is over
+            // Set the upper checkpoint to the current checkpoint, which is also the final checkpoint since we already validated that the auction is over
             upperCheckpoint = currentBlockCheckpoint;
             // Revert if the final checkpoint's clearing price is not equal to the bid's max price
             if (upperCheckpoint.clearingPrice != bidMaxPrice) {
@@ -665,7 +654,7 @@ contract ContinuousClearingAuction is
             }
         }
 
-        // If there is an `upperCheckpoint` that means that the bid had a period where it was partially filled
+        // If there is an `upperCheckpoint` that means that the bid had a period where it was partially filled.
         // From the logic above, `upperCheckpoint` now points to the last checkpoint where the clearingPrice == bidMaxPrice.
         // Because the clearing price can never decrease between checkpoints, and the fact that you cannot enter a bid
         // at or below the current clearing price, the bid MUST have been active during the entire partial fill period.
