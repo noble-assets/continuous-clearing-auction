@@ -55,5 +55,5 @@ quote_style = "single"
 sort_imports = true
 number_underscore = "thousands"
 
-[lint]
+[profile.default.lint]
 exclude_lints = ["mixed-case-variable"]
