@@ -45,5 +45,8 @@ endif
 deploy:
 	@forge script script/deploy/anvil/Deploy.s.sol:DeployNobleAuctionScript $(NETWORK_ARGS)
 
+# Default Permit2 address for Anvil (update if redeployed)
+PERMIT2_ADDRESS ?= 0x980C97D4d4221260C3473eE2FB84F025a711AB67
+
 bid:
-	@AUCTION_ADDRESS=0x4A679253410272dd5232B3Ff7cF5dbB88f295319 forge script script/deploy/anvil/Bid.s.sol:CCABidScript $(NETWORK_ARGS)
+	@AUCTION_ADDRESS=0x9E545E3C0baAB3E08CdfD552C960A1050f373042 PERMIT2_ADDRESS=$(PERMIT2_ADDRESS) forge script script/deploy/anvil/Bid.s.sol:CCABidScript $(NETWORK_ARGS)

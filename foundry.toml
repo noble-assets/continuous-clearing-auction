@@ -31,7 +31,8 @@ remappings = [
 additional_compiler_profiles = [{ name = "via_ir", optimizer_runs = 11111, via_ir = true }]
 
 compilation_restrictions = [
-  { paths = "src/ContinuousClearingAuctionFactory.sol", via_ir = true }
+    { paths = "src/ContinuousClearingAuctionFactory.sol", via_ir = true },
+    { paths = "lib/permit2/src/**/*.sol", via_ir = true }
 ]
 
 [profile.default.fuzz]
