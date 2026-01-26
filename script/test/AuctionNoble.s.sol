@@ -4,10 +4,11 @@ pragma solidity 0.8.26;
 import {ContinuousClearingAuction} from '../../src/ContinuousClearingAuction.sol';
 import {AuctionParameters} from '../../src/interfaces/IContinuousClearingAuction.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC20, ERC20Burnable} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
-import {IERC20} from 'forge-std/interfaces/IERC20.sol';
 
 interface IPermit2 {
     function approve(address token, address spender, uint160 amount, uint48 expiration) external;
@@ -30,6 +31,8 @@ contract NobleBurner is INobleBurner {
 }
 
 contract AuctionNoble is ERC20Burnable, Ownable {
+    using SafeERC20 for IERC20;
+
     address immutable NOBLE = 0xe995e5A3A4BF15498246D7620CA39f7409397326;
     INobleBurner immutable BURNER;
     bool public mintedToAuction;
@@ -53,7 +56,7 @@ contract AuctionNoble is ERC20Burnable, Ownable {
         }
 
         _burn(from, amount);
-        IERC20(NOBLE).transfer(address(BURNER), amount);
+        IERC20(NOBLE).safeTransfer(address(BURNER), amount);
         BURNER.doBurn();
     }
 
@@ -61,7 +64,7 @@ contract AuctionNoble is ERC20Burnable, Ownable {
         uint256 held = balanceOf(address(this));
         require(held > 0, 'Nothing to recover');
         _burn(address(this), held);
-        IERC20(NOBLE).transfer(owner(), held);
+        IERC20(NOBLE).safeTransfer(owner(), held);
     }
 }
 

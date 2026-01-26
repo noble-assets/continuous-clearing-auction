@@ -7,6 +7,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC20Burnable} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
 
@@ -58,6 +59,8 @@ contract NobleBurner is INobleBurner {
 }
 
 contract AuctionNoble is ERC20Burnable, Ownable {
+    using SafeERC20 for IERC20;
+
     address public immutable NOBLE;
     INobleBurner public immutable BURNER;
     bool public mintedToAuction;
@@ -82,7 +85,7 @@ contract AuctionNoble is ERC20Burnable, Ownable {
         }
 
         _burn(from, amount);
-        IERC20(NOBLE).transfer(address(BURNER), amount);
+        IERC20(NOBLE).safeTransfer(address(BURNER), amount);
         BURNER.doBurn();
     }
 
@@ -90,7 +93,7 @@ contract AuctionNoble is ERC20Burnable, Ownable {
         uint256 held = balanceOf(address(this));
         require(held > 0, 'Nothing to recover');
         _burn(address(this), held);
-        IERC20(NOBLE).transfer(owner(), held);
+        IERC20(NOBLE).safeTransfer(owner(), held);
     }
 }
 
