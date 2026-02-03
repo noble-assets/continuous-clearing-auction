@@ -111,7 +111,7 @@ contract DeployNobleAuctionScript is Script {
     uint256 constant DEPLOYER_USDC = 100_000_000e6;
 
     // Auction parameters
-    uint256 constant TICK_SPACING = (uint256(10000) << 96) / 1e18;
+    uint256 constant TICK_SPACING = (uint256(10_000) << 96) / 1e18;
     uint256 constant FLOOR_PRICE = TICK_SPACING * 5; // 0.05 $
     uint256 constant AUCTION_DURATION = 10_000;
     uint256 constant CLAIM_START = AUCTION_DURATION + 100;
