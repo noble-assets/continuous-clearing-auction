@@ -5,22 +5,33 @@ import {IValidationHookIntrospection, ValidationHookIntrospection} from './Valid
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
-/// @title INobleValidationHook
-/// @notice Interface for a validation hook that restricts auction participation to whitelisted addresses
-interface INobleValidationHook is IValidationHookIntrospection {
+/// @title IWhitelistValidationHook
+/// @notice Interface for validation hooks that support whitelist status queries
+/// @dev Frontends can check for this interface to determine if they can query a user's whitelist status
+interface IWhitelistValidationHook is IValidationHookIntrospection {
     /// @notice Returns whether an address is whitelisted
     /// @param addr The address to check
     /// @return True if the address is whitelisted
     function whitelisted(address addr) external view returns (bool);
+}
 
+/// @title IExpiringValidationHook
+/// @notice Interface for validation hooks that have a time-limited validation period
+/// @dev Frontends can check for this interface to determine if the hook has an expiration
+interface IExpiringValidationHook is IValidationHookIntrospection {
+    /// @notice The block number until which validation is enforced
+    /// @return The block number after which validation is bypassed
+    function expirationBlock() external view returns (uint256);
+}
+
+/// @title INobleValidationHook
+/// @notice Full interface for the Noble validation hook with whitelist management and expiration
+/// @dev Extends both IWhitelistValidationHook and IExpiringValidationHook with admin functions
+interface INobleValidationHook is IWhitelistValidationHook, IExpiringValidationHook {
     /// @notice Returns whether an address has whitelister permissions
     /// @param addr The address to check
     /// @return True if the address can whitelist others
     function whitelisters(address addr) external view returns (bool);
-
-    /// @notice The block number until which whitelist validation is enforced
-    /// @return The block number after which anyone can participate
-    function whitelistUntilBlock() external view returns (uint64);
 
     /// @notice Whitelist a single address
     /// @param addr The address to whitelist
@@ -39,13 +50,13 @@ interface INobleValidationHook is IValidationHookIntrospection {
     function removeWhitelister(address addr) external;
 
     /// @notice Update the block number until which whitelist validation is enforced
-    /// @param newBlock The new block number
-    function updateWhitelistUntilBlock(uint64 newBlock) external;
+    /// @param newBlock The new expiration block number
+    function updateExpirationBlock(uint256 newBlock) external;
 }
 
 /// @title NobleValidationHook
 /// @notice Validation hook that restricts auction participation to whitelisted addresses until a specified block
-/// @dev After `whitelistUntilBlock`, the whitelist check is bypassed and anyone can participate.
+/// @dev After `expirationBlock`, the whitelist check is bypassed and anyone can participate.
 ///      This hook also enforces that bids can only be submitted by the owner themselves (no third-party submissions).
 contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospection, Ownable {
     /// @notice Mapping of addresses to their whitelist status
@@ -55,7 +66,7 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     mapping(address => bool) public whitelisters;
 
     /// @notice The block number until which whitelist validation is enforced
-    uint64 public whitelistUntilBlock;
+    uint256 public expirationBlock;
 
     /// @notice Emitted when an address is added to the whitelist
     /// @param addr The address that was whitelisted
@@ -68,6 +79,10 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     /// @notice Emitted when an address has whitelister permissions revoked
     /// @param addr The address that had permissions revoked
     event WhitelisterRemoved(address indexed addr);
+
+    /// @notice Emitted when the expiration block is updated
+    /// @param newBlock The new expiration block number
+    event ExpirationBlockUpdated(uint256 newBlock);
 
     /// @notice Thrown when a caller without whitelister permissions attempts to whitelist addresses
     error NotWhitelister();
@@ -87,9 +102,9 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     /// @notice Initializes the whitelist validation hook
     /// @param owner The address that will own the contract and can manage whitelisters
     /// @param initialWhitelister The first address granted whitelister permissions
-    /// @param _whitelistUntilBlock The block number until which whitelist validation is enforced
-    constructor(address owner, address initialWhitelister, uint64 _whitelistUntilBlock) Ownable(owner) {
-        whitelistUntilBlock = _whitelistUntilBlock;
+    /// @param _expirationBlock The block number until which whitelist validation is enforced
+    constructor(address owner, address initialWhitelister, uint256 _expirationBlock) Ownable(owner) {
+        expirationBlock = _expirationBlock;
         whitelisters[initialWhitelister] = true;
     }
 
@@ -120,12 +135,13 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     }
 
     /// @inheritdoc INobleValidationHook
-    function updateWhitelistUntilBlock(uint64 newBlock) external onlyOwner {
-        whitelistUntilBlock = newBlock;
+    function updateExpirationBlock(uint256 newBlock) external onlyOwner {
+        expirationBlock = newBlock;
+        emit ExpirationBlockUpdated(newBlock);
     }
 
     /// @notice Returns true if the contract supports the given interface
-    /// @dev Extends ValidationHookIntrospection to also report support for INobleValidationHook
+    /// @dev Reports support for IWhitelistValidationHook, IExpiringValidationHook, and INobleValidationHook
     /// @param _interfaceId The interface identifier to check
     /// @return True if the interface is supported
     function supportsInterface(bytes4 _interfaceId)
@@ -135,18 +151,20 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
         override(ValidationHookIntrospection, IERC165)
         returns (bool)
     {
-        return super.supportsInterface(_interfaceId) || _interfaceId == type(INobleValidationHook).interfaceId;
+        return super.supportsInterface(_interfaceId) || _interfaceId == type(IWhitelistValidationHook).interfaceId
+            || _interfaceId == type(IExpiringValidationHook).interfaceId
+            || _interfaceId == type(INobleValidationHook).interfaceId;
     }
 
     /// @notice Validates that the sender is bidding for themselves and is whitelisted
     /// @dev Reverts if owner != sender (no third-party submissions allowed).
-    ///      Whitelist check is only enforced until `whitelistUntilBlock`.
+    ///      Whitelist check is only enforced until `expirationBlock`.
     /// @param owner The address that will own the bid and receive tokens
     /// @param sender The address submitting the bid transaction
     function validate(uint256, uint128, address owner, address sender, bytes calldata) external view {
         if (owner != sender) revert OwnerIsNotSender();
 
-        if (block.number < whitelistUntilBlock) {
+        if (block.number < expirationBlock) {
             if (!whitelisted[sender]) revert NotWhitelisted();
         }
     }
