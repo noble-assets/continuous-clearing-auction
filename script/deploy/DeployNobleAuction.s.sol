@@ -63,6 +63,7 @@ contract AuctionNoble is ERC20, Ownable {
     error NothingToMint();
     error AlreadyMintedToAuction();
     error NothingToRecover();
+    error InvalidRecipient();
 
     event Burned(address indexed from, uint256 amount);
 
@@ -83,6 +84,10 @@ contract AuctionNoble is ERC20, Ownable {
         _mint(auction, balance);
     }
 
+    function totalSupply() public view override returns (uint256) {
+        return IERC20(NOBLE).totalSupply();
+    }
+
     function _update(address from, address to, uint256 amount) internal override {
         if (from == address(0) || to == address(0) || to == address(this)) {
             super._update(from, to, amount);
@@ -96,11 +101,12 @@ contract AuctionNoble is ERC20, Ownable {
         emit Burned(from, amount);
     }
 
-    function recoverUnsold() external onlyOwner {
+    function recoverUnsold(address to) external onlyOwner {
+        if (to == address(0)) revert InvalidRecipient();
         uint256 held = balanceOf(address(this));
         if (held == 0) revert NothingToRecover();
         _burn(address(this), held);
-        IERC20(NOBLE).safeTransfer(owner(), held);
+        IERC20(NOBLE).safeTransfer(to, held);
     }
 }
 
