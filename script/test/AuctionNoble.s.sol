@@ -23,7 +23,11 @@ interface INobleBurner {
 }
 
 contract NobleBurner is INobleBurner {
-    INoble immutable NOBLE = INoble(0xe995e5A3A4BF15498246D7620CA39f7409397326);
+    INoble immutable NOBLE;
+
+    constructor(address _noble) {
+        NOBLE = INoble(_noble);
+    }
 
     function doBurn() external {
         NOBLE.burn();
@@ -33,20 +37,28 @@ contract NobleBurner is INobleBurner {
 contract AuctionNoble is ERC20, Ownable {
     using SafeERC20 for IERC20;
 
+    error NothingToMint();
+    error AlreadyMintedToAuction();
+    error NothingToRecover();
+
+    event Burned(address indexed from, uint256 amount);
+
     address immutable NOBLE = 0xe995e5A3A4BF15498246D7620CA39f7409397326;
+
     INobleBurner immutable BURNER;
+
     bool public mintedToAuction;
 
-    constructor(address _owner, address _burner) ERC20('AuctionNoble', 'NOBLE') Ownable(_owner) {
-        BURNER = INobleBurner(_burner);
+    constructor(address _owner) ERC20('AuctionNoble', 'NOBLE') Ownable(_owner) {
+        BURNER = new NobleBurner(NOBLE);
     }
 
     function mintToAuction(address auction) external onlyOwner {
         uint256 balance = IERC20(NOBLE).balanceOf(address(this));
-        require(balance > 0, 'Nothing to mint');
-        require(!mintedToAuction, 'Already minted to auction');
-        _mint(auction, balance);
+        if (balance == 0) revert NothingToMint();
+        if (mintedToAuction) revert AlreadyMintedToAuction();
         mintedToAuction = true;
+        _mint(auction, balance);
     }
 
     function _update(address from, address to, uint256 amount) internal override {
@@ -54,15 +66,16 @@ contract AuctionNoble is ERC20, Ownable {
             super._update(from, to, amount);
             return;
         }
-
         _burn(from, amount);
         IERC20(NOBLE).safeTransfer(address(BURNER), amount);
         BURNER.doBurn();
+
+        emit Burned(from, amount);
     }
 
     function recoverUnsold() external onlyOwner {
         uint256 held = balanceOf(address(this));
-        require(held > 0, 'Nothing to recover');
+        if (held == 0) revert NothingToRecover();
         _burn(address(this), held);
         IERC20(NOBLE).safeTransfer(owner(), held);
     }
@@ -82,7 +95,6 @@ contract AuctionNobleScript is Script {
 
     ContinuousClearingAuction public auction;
     AuctionNoble public auctionNoble;
-    NobleBurner public burner;
     IERC20 public currency;
     IERC20 public nobleToken;
 
@@ -112,13 +124,11 @@ contract AuctionNobleScript is Script {
             currency.transfer(bidders[i], 5_000_000e6);
         }
 
-        // Deploy contracts
+        // Deploy contract
         vm.startPrank(owner);
-        burner = new NobleBurner();
-        auctionNoble = new AuctionNoble(owner, address(burner));
+        auctionNoble = new AuctionNoble(owner);
         vm.stopPrank();
 
-        console.log('NobleBurner:', address(burner));
         console.log('AuctionNoble:', address(auctionNoble));
 
         // Fund wrapper with underlying NOBLE
