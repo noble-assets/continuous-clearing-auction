@@ -9,7 +9,7 @@ contract DeployValidationHookScript is Script {
     address constant WHITELISTER = 0x5d5b9Fc509b20BC8d2D845C8a5f746eEd31B55F8;
     address constant AUCTION = address(0xdead); // Placeholder
     address constant PREDICATE_REGISTRY = 0xe15a8Ca5BD8464283818088c1760d8f23B6a216E;
-    string constant POLICY_ID = 'placeholder-policy-id';
+    string constant POLICY_ID = 'x-managed-policy-6abd348959bb04a99c93cf9158a450cb';
     uint256 constant EXPIRATION_BLOCK = 1_000_000;
 
     function run() external {

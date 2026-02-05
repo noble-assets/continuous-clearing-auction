@@ -5,6 +5,7 @@ import {IValidationHook} from '../../interfaces/IValidationHook.sol';
 import {IValidationHookIntrospection, ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
+import {IPredicateClient} from '@predicate/interfaces/IPredicateClient.sol';
 import {Attestation} from '@predicate/interfaces/IPredicateRegistry.sol';
 import {PredicateClient} from '@predicate/mixins/PredicateClient.sol';
 
@@ -242,6 +243,7 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     {
         return super.supportsInterface(_interfaceId) || _interfaceId == type(IWhitelistValidationHook).interfaceId
             || _interfaceId == type(IExpiringValidationHook).interfaceId
-            || _interfaceId == type(INobleValidationHook).interfaceId;
+            || _interfaceId == type(INobleValidationHook).interfaceId
+            || _interfaceId == type(IPredicateClient).interfaceId;
     }
 }
