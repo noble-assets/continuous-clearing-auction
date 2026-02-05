@@ -22,3 +22,6 @@
 [submodule "lib/blocknumberish"]
 	path = lib/blocknumberish
 	url = https://github.com/Uniswap/blocknumberish
+[submodule "lib/predicate-contracts"]
+	path = lib/predicate-contracts
+	url = https://github.com/PredicateLabs/predicate-contracts

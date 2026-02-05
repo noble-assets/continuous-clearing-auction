@@ -20,6 +20,12 @@
   "lib/permit2": {
     "rev": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
   },
+  "lib/predicate-contracts": {
+    "tag": {
+      "name": "v2.2.2",
+      "rev": "28b3d3222173392d274a0d0e7aef51bcc96c6a38"
+    }
+  },
   "lib/solady": {
     "rev": "2af06408b6a204824c2ecb245779ed400b535fb5"
   },
