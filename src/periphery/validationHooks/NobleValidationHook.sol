@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {IValidationHook} from '../../interfaces/IValidationHook.sol';
 import {IValidationHookIntrospection, ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
+import {Attestation} from '@predicate/interfaces/IPredicateRegistry.sol';
+import {PredicateClient} from '@predicate/mixins/PredicateClient.sol';
 
 /// @title IWhitelistValidationHook
 /// @notice Interface for validation hooks that support whitelist status queries
@@ -52,13 +55,20 @@ interface INobleValidationHook is IWhitelistValidationHook, IExpiringValidationH
     /// @notice Update the block number until which whitelist validation is enforced
     /// @param newBlock The new expiration block number
     function updateExpirationBlock(uint256 newBlock) external;
+
+    /// @notice Update the auction contract address that this hook validates for
+    /// @param newAuction The new auction contract address
+    function updateAuction(address newAuction) external;
 }
 
 /// @title NobleValidationHook
 /// @notice Validation hook that restricts auction participation to whitelisted addresses until a specified block
 /// @dev After `expirationBlock`, the whitelist check is bypassed and anyone can participate.
 ///      This hook also enforces that bids can only be submitted by the owner themselves (no third-party submissions).
-contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospection, Ownable {
+contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospection, PredicateClient, Ownable {
+    /// @notice The auction contract this hook validates bids for
+    address public auction;
+
     /// @notice Mapping of addresses to their whitelist status
     mapping(address => bool) public whitelisted;
 
@@ -84,6 +94,15 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     /// @param newBlock The new expiration block number
     event ExpirationBlockUpdated(uint256 newBlock);
 
+    /// @notice Emitted when the auction contract address is updated
+    /// @param newAuction The new auction contract address
+    event AuctionUpdated(address newAuction);
+
+    /// @notice Emitted when an attestation is successfully validated
+    /// @param sender The address that submitted the bid
+    /// @param uuid The unique identifier of the attestation
+    event AttestationValidated(address indexed sender, string uuid);
+
     /// @notice Thrown when a caller without whitelister permissions attempts to whitelist addresses
     error NotWhitelister();
 
@@ -92,6 +111,12 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
 
     /// @notice Thrown when the bid owner is not the same as the transaction sender
     error OwnerIsNotSender();
+
+    /// @notice Error thrown when validate is called by an address other than the auction
+    error OnlyAuction();
+
+    /// @notice Error thrown when an invalid attestation is provided
+    error InvalidAttestation();
 
     /// @notice Restricts function access to addresses with whitelister permissions
     modifier onlyWhitelister() {
@@ -103,9 +128,21 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     /// @param owner The address that will own the contract and can manage whitelisters
     /// @param initialWhitelister The first address granted whitelister permissions
     /// @param _expirationBlock The block number until which whitelist validation is enforced
-    constructor(address owner, address initialWhitelister, uint256 _expirationBlock) Ownable(owner) {
+    /// @param _auction The address of the auction contract this hook will validate for
+    /// @param _registry The Predicate registry contract address
+    /// @param _policyID The policy ID for attestation verification
+    constructor(
+        address owner,
+        address initialWhitelister,
+        uint256 _expirationBlock,
+        address _auction,
+        address _registry,
+        string memory _policyID
+    ) Ownable(owner) {
         expirationBlock = _expirationBlock;
         whitelisters[initialWhitelister] = true;
+        auction = _auction;
+        _initPredicateClient(_registry, _policyID);
     }
 
     /// @inheritdoc INobleValidationHook
@@ -140,6 +177,58 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
         emit ExpirationBlockUpdated(newBlock);
     }
 
+    /// @inheritdoc INobleValidationHook
+    function updateAuction(address newAuction) external onlyOwner {
+        auction = newAuction;
+    }
+
+    /// @notice Validates that the sender is bidding for themselves, is whitelisted (if applicable), and has a valid attestation
+    /// @dev Reverts if:
+    ///      - Caller is not the auction contract
+    ///      - Owner != sender (no third-party submissions allowed)
+    ///      - Sender is not whitelisted and block.number < expirationBlock
+    ///      - Attestation verification fails via _authorizeTransaction
+    /// @param owner The address that will own the bid and receive tokens
+    /// @param sender The address submitting the bid transaction
+    /// @param hookData ABI-encoded Attestation struct containing compliance proof
+    function validate(uint256, uint128, address owner, address sender, bytes calldata hookData) external {
+        if (msg.sender != auction) {
+            revert OnlyAuction();
+        }
+        if (owner != sender) revert OwnerIsNotSender();
+        if (block.number < expirationBlock) {
+            if (!whitelisted[sender]) revert NotWhitelisted();
+        }
+
+        Attestation memory attestation = abi.decode(hookData, (Attestation));
+
+        // Encode the validate call signature and arguments for attestation verification
+        // Placeholder values used for maxPrice and amount as they're not relevant for compliance checks
+        bytes memory encodedSigAndArgs =
+            abi.encodeWithSelector(IValidationHook.validate.selector, uint256(0), uint128(0), owner, sender, hookData);
+
+        bool success = _authorizeTransaction(attestation, encodedSigAndArgs, sender, 0);
+        if (!success) {
+            revert InvalidAttestation();
+        }
+
+        emit AttestationValidated(sender, attestation.uuid);
+    }
+
+    /// @notice Updates the policy ID for this hook
+    /// @dev Can only be called by the contract Owner
+    /// @param _policyID The new policy ID
+    function setPolicyID(string memory _policyID) external override onlyOwner {
+        _setPolicyID(_policyID);
+    }
+
+    /// @notice Updates the Predicate registry address
+    /// @dev Can only be called by the contract Owner
+    /// @param _registry The new registry address
+    function setRegistry(address _registry) external override onlyOwner {
+        _setRegistry(_registry);
+    }
+
     /// @notice Returns true if the contract supports the given interface
     /// @dev Reports support for IWhitelistValidationHook, IExpiringValidationHook, and INobleValidationHook
     /// @param _interfaceId The interface identifier to check
@@ -154,18 +243,5 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
         return super.supportsInterface(_interfaceId) || _interfaceId == type(IWhitelistValidationHook).interfaceId
             || _interfaceId == type(IExpiringValidationHook).interfaceId
             || _interfaceId == type(INobleValidationHook).interfaceId;
-    }
-
-    /// @notice Validates that the sender is bidding for themselves and is whitelisted
-    /// @dev Reverts if owner != sender (no third-party submissions allowed).
-    ///      Whitelist check is only enforced until `expirationBlock`.
-    /// @param owner The address that will own the bid and receive tokens
-    /// @param sender The address submitting the bid transaction
-    function validate(uint256, uint128, address owner, address sender, bytes calldata) external view {
-        if (owner != sender) revert OwnerIsNotSender();
-
-        if (block.number < expirationBlock) {
-            if (!whitelisted[sender]) revert NotWhitelisted();
-        }
     }
 }

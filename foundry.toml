@@ -19,6 +19,7 @@ remappings = [
   "forge-std=lib/forge-std/src",
   "@openzeppelin/contracts=lib/openzeppelin-contracts/contracts",
   "@openzeppelin/contracts-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts",
+  "@predicate/=lib/predicate-contracts/src/",
   "solady=lib/solady/src",
   "permit2=lib/permit2",
   "v4-periphery=lib/v4-periphery",
@@ -55,5 +56,5 @@ quote_style = "single"
 sort_imports = true
 number_underscore = "thousands"
 
-[profile.lint]
+[lint]
 exclude_lints = ["mixed-case-variable"]
