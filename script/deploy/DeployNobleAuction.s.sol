@@ -112,9 +112,9 @@ contract AuctionNoble is ERC20, Ownable {
 
 contract DeployNobleAuctionScript is Script {
     // Token amounts
-    uint128 constant AUCTION_SUPPLY = 1_000_000e18;
-    uint256 constant DEPLOYER_NOBLE = 10_000_000e18;
-    uint256 constant DEPLOYER_USDC = 100_000_000e6;
+    uint128 constant AUCTION_SUPPLY = 1_000_000e18; // 1M NOBLE
+    uint256 constant DEPLOYER_NOBLE = 1e18; // 1 NOBLE
+    uint256 constant DEPLOYER_USDC = 1_000_000e6; // 1M USDC
 
     // Auction parameters
     uint256 constant TICK_SPACING = (uint256(10_000) << 96) / 1e18;
