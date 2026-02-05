@@ -60,21 +60,32 @@ contract NobleBurner is INobleBurner {
 contract AuctionNoble is ERC20, Ownable {
     using SafeERC20 for IERC20;
 
+    error NothingToMint();
+    error AlreadyMintedToAuction();
+    error NothingToRecover();
+    error InvalidRecipient();
+
+    event Burned(address indexed from, uint256 amount);
+
     address public immutable NOBLE;
     INobleBurner public immutable BURNER;
     bool public mintedToAuction;
 
-    constructor(address _owner, address _noble, address _burner) ERC20('AuctionNoble', 'aNOBLE') Ownable(_owner) {
+    constructor(address _owner, address _noble) ERC20('AuctionNoble', 'aNOBLE') Ownable(_owner) {
         NOBLE = _noble;
-        BURNER = INobleBurner(_burner);
+        BURNER = new NobleBurner(NOBLE);
     }
 
     function mintToAuction(address auction) external onlyOwner {
         uint256 balance = IERC20(NOBLE).balanceOf(address(this));
-        require(balance > 0, 'Nothing to mint');
-        require(!mintedToAuction, 'Already minted to auction');
-        _mint(auction, balance);
+        if (balance == 0) revert NothingToMint();
+        if (mintedToAuction) revert AlreadyMintedToAuction();
         mintedToAuction = true;
+        _mint(auction, balance);
+    }
+
+    function totalSupply() public view override returns (uint256) {
+        return IERC20(NOBLE).totalSupply();
     }
 
     function _update(address from, address to, uint256 amount) internal override {
@@ -86,13 +97,16 @@ contract AuctionNoble is ERC20, Ownable {
         _burn(from, amount);
         IERC20(NOBLE).safeTransfer(address(BURNER), amount);
         BURNER.doBurn();
+
+        emit Burned(from, amount);
     }
 
-    function recoverUnsold() external onlyOwner {
+    function recoverUnsold(address to) external onlyOwner {
+        if (to == address(0)) revert InvalidRecipient();
         uint256 held = balanceOf(address(this));
-        require(held > 0, 'Nothing to recover');
+        if (held == 0) revert NothingToRecover();
         _burn(address(this), held);
-        IERC20(NOBLE).safeTransfer(owner(), held);
+        IERC20(NOBLE).safeTransfer(to, held);
     }
 }
 
@@ -103,14 +117,16 @@ contract DeployNobleAuctionScript is Script {
     uint256 constant DEPLOYER_USDC = 1_000_000e6; // 1M USDC
 
     // Auction parameters
-    uint256 constant TICK_SPACING = (uint256(10000) << 96) / 1e18; // 0.01 USDC
-    uint256 constant FLOOR_PRICE = TICK_SPACING * 5; // 0.05 USDC
+    uint256 constant TICK_SPACING = (uint256(10_000) << 96) / 1e18;
+    uint256 constant FLOOR_PRICE = TICK_SPACING * 5; // 0.05 $
     uint256 constant AUCTION_DURATION = 10_000;
     uint256 constant CLAIM_START = AUCTION_DURATION + 100;
     uint24 constant STEP_PERCENTAGE = 1e3;
 
     function run() external {
         vm.startBroadcast();
+
+        console.log('Tick Spacing:', TICK_SPACING);
 
         console.log('=== DEPLOYMENT CONFIG ===');
         console.log('Deployer:', msg.sender);
@@ -124,12 +140,10 @@ contract DeployNobleAuctionScript is Script {
         console.log('MockUSDC:', address(usdc));
         console.log('Noble:', address(noble));
 
-        // 2. Deploy burner and wrapper
-        NobleBurner burner = new NobleBurner(address(noble));
-        AuctionNoble auctionNoble = new AuctionNoble(msg.sender, address(noble), address(burner));
+        // 2. Deploy wrapper
+        AuctionNoble auctionNoble = new AuctionNoble(msg.sender, address(noble));
 
         console.log('\n=== WRAPPER DEPLOYED ===');
-        console.log('NobleBurner:', address(burner));
         console.log('AuctionNoble:', address(auctionNoble));
 
         // 3. Setup auction parameters
@@ -176,7 +190,6 @@ contract DeployNobleAuctionScript is Script {
         console.log('\n=== FINAL SUMMARY ===');
         console.log('MockUSDC:     ', address(usdc));
         console.log('Noble:        ', address(noble));
-        console.log('NobleBurner:  ', address(burner));
         console.log('AuctionNoble: ', address(auctionNoble));
         console.log('Auction:      ', address(auction));
         console.log('');

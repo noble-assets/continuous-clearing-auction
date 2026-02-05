@@ -34,3 +34,9 @@ bid auction amount:
 # Limit order
 bid-max-price auction amount max-price:
     AUCTION={{auction}} AMOUNT={{amount}} MAX_PRICE={{max-price}} forge script script/auction/Bid.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvv
+
+deploy-hook:
+    forge script script/deploy/DeployValidationHook.s.sol --tc DeployValidationHookScript --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvv
+
+deploy-and-verify-hook:
+    forge script script/deploy/DeployValidationHook.s.sol --tc DeployValidationHookScript --rpc-url $RPC_URL --private-key $PRIVATE_KEY --verify --broadcast -vvv
