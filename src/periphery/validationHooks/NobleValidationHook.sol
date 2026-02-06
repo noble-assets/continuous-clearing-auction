@@ -2,46 +2,35 @@
 pragma solidity ^0.8.26;
 
 import {IValidationHook} from '../../interfaces/IValidationHook.sol';
-import {IValidationHookIntrospection, ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
+import {IBaseERC1155ValidationHook} from './BaseERC1155ValidationHook.sol';
+import {IGatedERC1155ValidationHook} from './GatedERC1155ValidationHook.sol';
+import {ValidationHookIntrospection} from './ValidationHookIntrospection.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {ERC1155} from '@openzeppelin/contracts/token/ERC1155/ERC1155.sol';
+import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {IPredicateClient} from '@predicate/interfaces/IPredicateClient.sol';
 import {Attestation} from '@predicate/interfaces/IPredicateRegistry.sol';
 import {PredicateClient} from '@predicate/mixins/PredicateClient.sol';
 
-/// @title IWhitelistValidationHook
-/// @notice Interface for validation hooks that support whitelist status queries
-/// @dev Frontends can check for this interface to determine if they can query a user's whitelist status
-interface IWhitelistValidationHook is IValidationHookIntrospection {
-    /// @notice Returns whether an address is whitelisted
-    /// @param addr The address to check
-    /// @return True if the address is whitelisted
-    function whitelisted(address addr) external view returns (bool);
-}
-
-/// @title IExpiringValidationHook
-/// @notice Interface for validation hooks that have a time-limited validation period
-/// @dev Frontends can check for this interface to determine if the hook has an expiration
-interface IExpiringValidationHook is IValidationHookIntrospection {
-    /// @notice The block number until which validation is enforced
-    /// @return The block number after which validation is bypassed
-    function expirationBlock() external view returns (uint256);
-}
-
 /// @title INobleValidationHook
 /// @notice Full interface for the Noble validation hook with whitelist management and expiration
-/// @dev Extends both IWhitelistValidationHook and IExpiringValidationHook with admin functions
-interface INobleValidationHook is IWhitelistValidationHook, IExpiringValidationHook {
+/// @dev Extends IGatedERC1155ValidationHook with admin functions for whitelister management and auction configuration
+interface INobleValidationHook is IGatedERC1155ValidationHook {
     /// @notice Returns whether an address has whitelister permissions
     /// @param addr The address to check
     /// @return True if the address can whitelist others
     function whitelisters(address addr) external view returns (bool);
 
-    /// @notice Whitelist a single address
+    /// @notice The auction contract this hook validates bids for
+    /// @return The auction contract address
+    function auction() external view returns (address);
+
+    /// @notice Whitelist a single address by minting them a soulbound ERC1155 token
     /// @param addr The address to whitelist
     function whitelistAddress(address addr) external;
 
-    /// @notice Whitelist multiple addresses in a single transaction
+    /// @notice Whitelist multiple addresses in a single transaction by minting each a soulbound ERC1155 token
     /// @param addrs The addresses to whitelist
     function whitelistAddresses(address[] calldata addrs) external;
 
@@ -53,35 +42,34 @@ interface INobleValidationHook is IWhitelistValidationHook, IExpiringValidationH
     /// @param addr The address to revoke permissions from
     function removeWhitelister(address addr) external;
 
-    /// @notice Update the block number until which whitelist validation is enforced
-    /// @param newBlock The new expiration block number
-    function updateExpirationBlock(uint256 newBlock) external;
-
     /// @notice Update the auction contract address that this hook validates for
     /// @param newAuction The new auction contract address
     function updateAuction(address newAuction) external;
+
+    /// @notice Update the block number until which whitelist validation is enforced
+    /// @param newBlock The new expiration block number
+    function updateExpirationBlock(uint256 newBlock) external;
 }
 
 /// @title NobleValidationHook
-/// @notice Validation hook that restricts auction participation to whitelisted addresses until a specified block
-/// @dev After `expirationBlock`, the whitelist check is bypassed and anyone can participate.
+/// @notice Soulbound ERC1155 validation hook that restricts auction participation to whitelisted addresses until a specified block
+/// @dev The contract itself is the ERC1155 token — whitelisting mints a soulbound token, and validation checks the balance.
+///      After `expirationBlock`, the token balance check is bypassed and anyone can participate.
 ///      This hook also enforces that bids can only be submitted by the owner themselves (no third-party submissions).
-contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospection, PredicateClient, Ownable {
+contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospection, ERC1155, PredicateClient, Ownable {
+    /// @notice The block number until which whitelist validation is enforced
+    /// @inheritdoc IGatedERC1155ValidationHook
+    uint256 public expirationBlock;
+
+    /// @notice The ERC1155 token ID used for whitelist credentials
+    /// @inheritdoc IBaseERC1155ValidationHook
+    uint256 public constant tokenId = 0;
+
     /// @notice The auction contract this hook validates bids for
     address public auction;
 
-    /// @notice Mapping of addresses to their whitelist status
-    mapping(address => bool) public whitelisted;
-
     /// @notice Mapping of addresses to their whitelister permissions
     mapping(address => bool) public whitelisters;
-
-    /// @notice The block number until which whitelist validation is enforced
-    uint256 public expirationBlock;
-
-    /// @notice Emitted when an address is added to the whitelist
-    /// @param addr The address that was whitelisted
-    event AddressWhitelisted(address indexed addr);
 
     /// @notice Emitted when an address is granted whitelister permissions
     /// @param addr The address that was granted permissions
@@ -90,10 +78,6 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     /// @notice Emitted when an address has whitelister permissions revoked
     /// @param addr The address that had permissions revoked
     event WhitelisterRemoved(address indexed addr);
-
-    /// @notice Emitted when the expiration block is updated
-    /// @param newBlock The new expiration block number
-    event ExpirationBlockUpdated(uint256 newBlock);
 
     /// @notice Emitted when the auction contract address is updated
     /// @param newAuction The new auction contract address
@@ -104,20 +88,27 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
     /// @param uuid The unique identifier of the attestation
     event AttestationValidated(address indexed sender, string uuid);
 
+    /// @notice Emitted when the expiration block is updated
+    /// @param newBlock The new expiration block number
+    event ExpirationBlockUpdated(uint256 newBlock);
+
     /// @notice Thrown when a caller without whitelister permissions attempts to whitelist addresses
     error NotWhitelister();
 
-    /// @notice Thrown when a non-whitelisted address attempts to participate in the auction
+    /// @notice Thrown when an address without a whitelist token attempts to participate in the auction
     error NotWhitelisted();
 
     /// @notice Thrown when the bid owner is not the same as the transaction sender
     error OwnerIsNotSender();
 
-    /// @notice Error thrown when validate is called by an address other than the auction
+    /// @notice Thrown when validate is called by an address other than the auction
     error OnlyAuction();
 
-    /// @notice Error thrown when an invalid attestation is provided
+    /// @notice Thrown when an invalid attestation is provided
     error InvalidAttestation();
+
+    /// @notice Thrown when a transfer is attempted — whitelist tokens are soulbound (non-transferable)
+    error SoulboundToken();
 
     /// @notice Restricts function access to addresses with whitelister permissions
     modifier onlyWhitelister() {
@@ -125,7 +116,7 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
         _;
     }
 
-    /// @notice Initializes the whitelist validation hook
+    /// @notice Initializes the Noble validation hook
     /// @param owner The address that will own the contract and can manage whitelisters
     /// @param initialWhitelister The first address granted whitelister permissions
     /// @param _expirationBlock The block number until which whitelist validation is enforced
@@ -139,12 +130,37 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
         address _auction,
         address _registry,
         string memory _policyID
-    ) Ownable(owner) {
+    ) ERC1155('') Ownable(owner) {
         expirationBlock = _expirationBlock;
         whitelisters[initialWhitelister] = true;
         auction = _auction;
         _initPredicateClient(_registry, _policyID);
     }
+
+    // ─── IBaseERC1155ValidationHook ──────────────────────────────────
+
+    /// @notice Returns the ERC1155 token contract used for whitelist checks
+    /// @dev Returns `address(this)` since this contract is itself the ERC1155 token
+    /// @return The ERC1155 interface pointing to this contract
+    /// @inheritdoc IBaseERC1155ValidationHook
+    function erc1155() external view returns (IERC1155) {
+        return IERC1155(address(this));
+    }
+
+    // ─── Soulbound ───────────────────────────────────────────────────
+
+    /// @notice Prevents all transfers — only minting (from == address(0)) is allowed
+    /// @dev Overrides ERC1155._update to enforce soulbound behavior
+    /// @param from The sender address (must be address(0) for minting)
+    /// @param to The recipient address
+    /// @param ids The token IDs being transferred
+    /// @param values The amounts being transferred
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
+        if (from != address(0)) revert SoulboundToken();
+        super._update(from, to, ids, values);
+    }
+
+    // ─── Whitelister Management ──────────────────────────────────────
 
     /// @inheritdoc INobleValidationHook
     function addWhitelister(address addr) external onlyOwner {
@@ -158,47 +174,39 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
         emit WhitelisterRemoved(addr);
     }
 
+    // ─── Whitelisting ────────────────────────────────────────────────
+
+    /// @notice Whitelists a single address by minting them a soulbound ERC1155 token
     /// @inheritdoc INobleValidationHook
     function whitelistAddress(address addr) external onlyWhitelister {
-        whitelisted[addr] = true;
-        emit AddressWhitelisted(addr);
+        _mint(addr, tokenId, 1, '');
     }
 
+    /// @notice Whitelists multiple addresses by minting each a soulbound ERC1155 token
     /// @inheritdoc INobleValidationHook
     function whitelistAddresses(address[] calldata addrs) external onlyWhitelister {
         for (uint256 i = 0; i < addrs.length; i++) {
-            whitelisted[addrs[i]] = true;
-            emit AddressWhitelisted(addrs[i]);
+            _mint(addrs[i], tokenId, 1, '');
         }
     }
 
-    /// @inheritdoc INobleValidationHook
-    function updateExpirationBlock(uint256 newBlock) external onlyOwner {
-        expirationBlock = newBlock;
-        emit ExpirationBlockUpdated(newBlock);
-    }
+    // ─── Validation ──────────────────────────────────────────────────
 
-    /// @inheritdoc INobleValidationHook
-    function updateAuction(address newAuction) external onlyOwner {
-        auction = newAuction;
-    }
-
-    /// @notice Validates that the sender is bidding for themselves, is whitelisted (if applicable), and has a valid attestation
+    /// @notice Validates that the sender is bidding for themselves, holds a whitelist token (if applicable), and has a valid attestation
     /// @dev Reverts if:
     ///      - Caller is not the auction contract
     ///      - Owner != sender (no third-party submissions allowed)
-    ///      - Sender is not whitelisted and block.number < expirationBlock
+    ///      - Sender does not hold a whitelist token and block.number < expirationBlock
     ///      - Attestation verification fails via _authorizeTransaction
     /// @param owner The address that will own the bid and receive tokens
     /// @param sender The address submitting the bid transaction
     /// @param hookData ABI-encoded Attestation struct containing compliance proof
     function validate(uint256, uint128, address owner, address sender, bytes calldata hookData) external {
-        if (msg.sender != auction) {
-            revert OnlyAuction();
-        }
+        if (msg.sender != auction) revert OnlyAuction();
         if (owner != sender) revert OwnerIsNotSender();
+
         if (block.number < expirationBlock) {
-            if (!whitelisted[sender]) revert NotWhitelisted();
+            if (balanceOf(sender, tokenId) == 0) revert NotWhitelisted();
         }
 
         Attestation memory attestation = abi.decode(hookData, (Attestation));
@@ -209,40 +217,58 @@ contract NobleValidationHook is INobleValidationHook, ValidationHookIntrospectio
             abi.encodeWithSelector(IValidationHook.validate.selector, uint256(0), uint128(0), owner, sender, hookData);
 
         bool success = _authorizeTransaction(attestation, encodedSigAndArgs, sender, 0);
-        if (!success) {
-            revert InvalidAttestation();
-        }
+        if (!success) revert InvalidAttestation();
 
         emit AttestationValidated(sender, attestation.uuid);
     }
 
+    // ─── Admin ───────────────────────────────────────────────────────
+
+    /// @inheritdoc INobleValidationHook
+    function updateAuction(address newAuction) external onlyOwner {
+        auction = newAuction;
+        emit AuctionUpdated(newAuction);
+    }
+
     /// @notice Updates the policy ID for this hook
-    /// @dev Can only be called by the contract Owner
+    /// @dev Can only be called by the contract owner
     /// @param _policyID The new policy ID
     function setPolicyID(string memory _policyID) external override onlyOwner {
         _setPolicyID(_policyID);
     }
 
     /// @notice Updates the Predicate registry address
-    /// @dev Can only be called by the contract Owner
+    /// @dev Can only be called by the contract owner
     /// @param _registry The new registry address
     function setRegistry(address _registry) external override onlyOwner {
         _setRegistry(_registry);
     }
 
+    /// @notice Update the block number until which whitelist validation is enforced
+    /// @dev Can only be called by the contract owner
+    /// @param newBlock The new expiration block number
+    /// @inheritdoc INobleValidationHook
+    function updateExpirationBlock(uint256 newBlock) external onlyOwner {
+        expirationBlock = newBlock;
+        emit ExpirationBlockUpdated(newBlock);
+    }
+
+    // ─── Introspection ──────────────────────────────────────────────
+
     /// @notice Returns true if the contract supports the given interface
-    /// @dev Reports support for IWhitelistValidationHook, IExpiringValidationHook, and INobleValidationHook
+    /// @dev Reports support for IBaseERC1155ValidationHook, IGatedERC1155ValidationHook, INobleValidationHook, IPredicateClient, and inherited interfaces
     /// @param _interfaceId The interface identifier to check
     /// @return True if the interface is supported
     function supportsInterface(bytes4 _interfaceId)
         public
         view
         virtual
-        override(ValidationHookIntrospection, IERC165)
+        override(ValidationHookIntrospection, ERC1155, IERC165)
         returns (bool)
     {
-        return super.supportsInterface(_interfaceId) || _interfaceId == type(IWhitelistValidationHook).interfaceId
-            || _interfaceId == type(IExpiringValidationHook).interfaceId
+        return ValidationHookIntrospection.supportsInterface(_interfaceId) || ERC1155.supportsInterface(_interfaceId)
+            || _interfaceId == type(IBaseERC1155ValidationHook).interfaceId
+            || _interfaceId == type(IGatedERC1155ValidationHook).interfaceId
             || _interfaceId == type(INobleValidationHook).interfaceId
             || _interfaceId == type(IPredicateClient).interfaceId;
     }
