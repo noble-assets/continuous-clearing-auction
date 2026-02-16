@@ -27,6 +27,12 @@ deploy:
 deploy-and-verify:
     forge script script/deploy/DeployNobleAuction.s.sol --tc DeployNobleAuctionScript --rpc-url $RPC_URL --private-key $PRIVATE_KEY --verify --broadcast -vvv
 
+deploy-with-steps:
+    forge script script/deploy/DeployNobleAuctionWithSteps.s.sol --tc DeployNobleAuctionWithStepsScript --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvv    
+
+deploy-and-verify-with-steps:
+    forge script script/deploy/DeployNobleAuctionWithSteps.s.sol --tc DeployNobleAuctionWithStepsScript --rpc-url $RPC_URL --private-key $PRIVATE_KEY --verify --broadcast -vvv
+
 # Market order
 bid auction amount:
     AUCTION={{auction}} AMOUNT={{amount}} forge script script/auction/Bid.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvv

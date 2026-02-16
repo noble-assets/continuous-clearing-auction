@@ -1,0 +1,40 @@
+{
+  "supplySchedule": [
+    {
+      "mps": 0,
+      "blockDelta": 14400
+    },
+    {
+      "mps": 69,
+      "blockDelta": 7200
+    },
+    {
+      "mps": 104,
+      "blockDelta": 7200
+    },
+    {
+      "mps": 105,
+      "blockDelta": 7200
+    },
+    {
+      "mps": 0,
+      "blockDelta": 21600
+    },
+    {
+      "mps": 35,
+      "blockDelta": 14400
+    },
+    {
+      "mps": 92,
+      "blockDelta": 10800
+    },
+    {
+      "mps": 834,
+      "blockDelta": 3600
+    },
+    {
+      "mps": 3498400,
+      "blockDelta": 1
+    }
+  ]
+}
