@@ -1,40 +1,13 @@
 {
   "supplySchedule": [
-    {
-      "mps": 0,
-      "blockDelta": 14400
-    },
-    {
-      "mps": 69,
-      "blockDelta": 7200
-    },
-    {
-      "mps": 104,
-      "blockDelta": 7200
-    },
-    {
-      "mps": 105,
-      "blockDelta": 7200
-    },
-    {
-      "mps": 0,
-      "blockDelta": 21600
-    },
-    {
-      "mps": 35,
-      "blockDelta": 14400
-    },
-    {
-      "mps": 92,
-      "blockDelta": 10800
-    },
-    {
-      "mps": 834,
-      "blockDelta": 3600
-    },
-    {
-      "mps": 3498400,
-      "blockDelta": 1
-    }
+    { "mps": 0,          "blockDelta": 166 },
+    { "mps": 5968,       "blockDelta": 83  },
+    { "mps": 8995,       "blockDelta": 83  },
+    { "mps": 9081,       "blockDelta": 83  },
+    { "mps": 0,          "blockDelta": 250 },
+    { "mps": 3027,       "blockDelta": 166 },
+    { "mps": 7957,       "blockDelta": 125 },
+    { "mps": 72133,      "blockDelta": 42  },
+    { "mps": 3498400,    "blockDelta": 1   }
   ]
 }

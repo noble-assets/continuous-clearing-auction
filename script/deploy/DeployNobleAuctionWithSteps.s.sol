@@ -123,7 +123,7 @@ contract DeployNobleAuctionWithStepsScript is Script {
     }
 
     // Token amounts
-    uint128 constant AUCTION_SUPPLY = 50_000_000e18; // 50M NOBLE
+    uint128 constant AUCTION_SUPPLY = 5_000_000e18; // 5M NOBLE
     uint256 constant DEPLOYER_NOBLE = 1e18; // 1 NOBLE
     uint256 constant DEPLOYER_USDC = 1_000_000e6; // 1M USDC
 
